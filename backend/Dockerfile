@@ -27,6 +27,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-descargar el modelo de rembg (u2net) durante la construcción de la imagen
+# Esto evita que el servidor intente descargarlo al iniciar y cause un timeout de puerto en Render
+RUN python -c "import rembg; rembg.new_session('u2net')"
+
 # Copiar el código del backend
 COPY . .
 
