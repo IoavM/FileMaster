@@ -1,0 +1,80 @@
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transicion);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.boton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Variante Primario */
+.boton-primario {
+  background: var(--color-primario);
+  color: var(--color-blanco);
+  border: 2px solid var(--color-primario);
+}
+
+.boton-primario:hover:not(:disabled) {
+  background: var(--color-primario-hover);
+  border-color: var(--color-primario-hover);
+}
+
+/* Variante Secundario */
+.boton-secundario {
+  background: var(--color-terciario);
+  color: var(--color-secundario);
+  border: 2px solid var(--color-borde);
+}
+
+.boton-secundario:hover:not(:disabled) {
+  background: var(--color-borde-claro);
+  color: var(--color-neutro);
+}
+
+/* Variante Invertido */
+.boton-invertido {
+  background: var(--color-primario-suave);
+  color: var(--color-primario);
+  border: 2px solid var(--color-primario);
+}
+
+.boton-invertido:hover:not(:disabled) {
+  background: var(--color-primario);
+  color: var(--color-blanco);
+}
+
+/* Variante Contorno */
+.boton-contorno {
+  background: transparent;
+  color: var(--color-primario);
+  border: 2px solid var(--color-primario);
+}
+
+.boton-contorno:hover:not(:disabled) {
+  background: var(--color-primario-suave);
+}
+
+/* Cargando */
+.boton-cargando .boton-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.6s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}

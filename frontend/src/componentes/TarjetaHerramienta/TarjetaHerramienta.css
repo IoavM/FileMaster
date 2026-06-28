@@ -1,0 +1,59 @@
+.tarjeta-herramienta {
+  background: var(--color-blanco);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radius-xl);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all var(--transicion);
+}
+
+.tarjeta-herramienta:hover {
+  border-color: var(--color-primario-claro);
+  box-shadow: var(--shadow-elevada);
+  transform: translateY(-2px);
+}
+
+.tarjeta-herramienta-icono {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tarjeta-herramienta-icono svg {
+  width: 28px;
+  height: 28px;
+}
+
+.tarjeta-herramienta-titulo {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-neutro);
+}
+
+.tarjeta-herramienta-descripcion {
+  font-size: 13px;
+  color: var(--color-secundario);
+  line-height: 1.5;
+}
+
+.tarjeta-herramienta-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primario);
+  transition: gap var(--transicion);
+}
+
+.tarjeta-herramienta:hover .tarjeta-herramienta-enlace {
+  gap: 8px;
+}

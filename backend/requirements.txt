@@ -1,0 +1,30 @@
+# FileMaster Backend — Dependencias
+# Servidor
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+python-multipart==0.0.9
+
+# Procesamiento de imágenes
+Pillow==10.4.0
+rembg==2.0.57
+
+# Generación de QR
+qrcode[pil]==7.4.2
+
+# PDF
+pypdf==4.3.0
+PyMuPDF==1.24.0
+
+# Documentos
+python-docx==1.1.0
+openpyxl==3.1.5
+
+# Audio / Video
+pydub==0.25.1
+edge-tts==7.2.8
+
+# YouTube
+yt-dlp==2024.8.6
+
+# Utilidades
+aiofiles==24.1.0

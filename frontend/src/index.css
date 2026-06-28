@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ===========================
+   SISTEMA DE DISEÑO FILEMASTER
+   =========================== */
+
+@theme {
+  /* Colores principales */
+  --color-primario: #2563EB;
+  --color-primario-hover: #1D4ED8;
+  --color-primario-claro: #DBEAFE;
+  --color-primario-suave: #EFF6FF;
+  --color-secundario: #64748B;
+  --color-secundario-hover: #475569;
+  --color-terciario: #F8FAFC;
+  --color-neutro: #0F172A;
+  --color-blanco: #FFFFFF;
+  --color-exito: #16A34A;
+  --color-exito-fondo: #DCFCE7;
+  --color-error: #DC2626;
+  --color-error-fondo: #FEE2E2;
+  --color-advertencia: #F59E0B;
+  --color-advertencia-fondo: #FEF3C7;
+  --color-fondo: #EFF3FB;
+  --color-borde: #E2E8F0;
+  --color-borde-claro: #F1F5F9;
+
+  /* Sombras */
+  --shadow-tarjeta: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-elevada: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.15);
+
+  /* Radios */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Transiciones */
+  --transicion: 200ms ease;
+  --transicion-larga: 350ms ease;
+
+  /* Tipografía */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ===========================
+   RESET Y ESTILOS BASE
+   =========================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-fondo);
+  color: var(--color-neutro);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  outline: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ===========================
+   UTILIDADES GLOBALES
+   =========================== */
+
+.contenedor {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+
+.sr-solo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-terciario);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-secundario);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secundario-hover);
+}

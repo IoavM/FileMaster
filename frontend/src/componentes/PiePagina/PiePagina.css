@@ -1,0 +1,42 @@
+.pie-pagina {
+  background: var(--color-blanco);
+  border-top: 1px solid var(--color-borde);
+  padding: 24px 0;
+  margin-top: auto;
+}
+
+.pie-pagina .contenedor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pie-pagina-texto {
+  font-size: 13px;
+  color: var(--color-secundario);
+}
+
+.pie-pagina-enlaces {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.pie-pagina-enlace {
+  font-size: 13px;
+  color: var(--color-secundario);
+  transition: color var(--transicion);
+}
+
+.pie-pagina-enlace:hover {
+  color: var(--color-primario);
+}
+
+@media (max-width: 640px) {
+  .pie-pagina .contenedor {
+    flex-direction: column;
+    text-align: center;
+  }
+}

@@ -1,0 +1,25 @@
+services:
+  # Servicio Web para el Backend de FastAPI
+  - type: web
+    name: filemaster-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    startCommand: uvicorn app.principal:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: RENDER
+        value: produccion
+      - key: FRONTEND_URL
+        value: https://filemaster-frontend.onrender.com # Cambiar por tu URL final de frontend
+
+  # Sitio Estático para el Frontend de React
+  - type: web
+    name: filemaster-frontend
+    env: static
+    plan: free
+    publishDir: frontend/dist
+    buildCommand: cd frontend && npm install && npm run build
+    envVars:
+      - key: VITE_API_URL
+        value: https://filemaster-backend.onrender.com # Cambiar por tu URL final de backend

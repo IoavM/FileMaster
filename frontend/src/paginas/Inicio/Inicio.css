@@ -1,0 +1,25 @@
+.inicio {
+  padding: 0;
+}
+
+/* Layout de dos columnas */
+.inicio-principal {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .inicio-principal {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .inicio-principal {
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+}
