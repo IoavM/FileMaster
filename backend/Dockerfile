@@ -33,5 +33,5 @@ COPY . .
 # Exponer el puerto por el que escuchará FastAPI
 EXPOSE 8000
 
-# Comando para iniciar la aplicación usando uvicorn
-CMD ["uvicorn", "app.principal:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando para iniciar la aplicación usando uvicorn, enlazando al puerto dinámico de Render
+CMD ["sh", "-c", "uvicorn app.principal:app --host 0.0.0.0 --port ${PORT:-8000}"]
