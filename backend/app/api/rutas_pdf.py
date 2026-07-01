@@ -26,6 +26,12 @@ async def editar_pdf(
     bytes_salida = procesar_pdf(lista_bytes, operacion, dict_opciones)
     
     if operacion == "dividir":
+        if "desde" in dict_opciones or "hasta" in dict_opciones:
+            return Response(
+                content=bytes_salida,
+                media_type="application/pdf",
+                headers={"Content-Disposition": "attachment; filename=pdf_dividido.pdf"}
+            )
         return Response(
             content=bytes_salida,
             media_type="application/zip",

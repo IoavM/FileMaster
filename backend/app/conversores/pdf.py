@@ -34,15 +34,31 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
     escritor = PdfWriter()
 
     if operacion == "dividir":
-        buffer_zip = BytesIO()
-        with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as archivo_zip:
-            for i, pagina in enumerate(lector.pages):
-                escritor_temp = PdfWriter()
-                escritor_temp.add_page(pagina)
-                buffer_temp = BytesIO()
-                escritor_temp.write(buffer_temp)
-                archivo_zip.writestr(f"pagina_{i+1}.pdf", buffer_temp.getvalue())
-        return buffer_zip.getvalue()
+        desde = opciones.get("desde")
+        hasta = opciones.get("hasta")
+        if desde is not None or hasta is not None:
+            val_desde = int(desde) if desde is not None else 1
+            val_hasta = int(hasta) if hasta is not None else len(lector.pages)
+            
+            inicio = max(0, val_desde - 1)
+            fin = min(len(lector.pages), val_hasta)
+            
+            for i in range(inicio, fin):
+                escritor.add_page(lector.pages[i])
+                
+            buffer = BytesIO()
+            escritor.write(buffer)
+            return buffer.getvalue()
+        else:
+            buffer_zip = BytesIO()
+            with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as archivo_zip:
+                for i, pagina in enumerate(lector.pages):
+                    escritor_temp = PdfWriter()
+                    escritor_temp.add_page(pagina)
+                    buffer_temp = BytesIO()
+                    escritor_temp.write(buffer_temp)
+                    archivo_zip.writestr(f"pagina_{i+1}.pdf", buffer_temp.getvalue())
+            return buffer_zip.getvalue()
 
     elif operacion == "comprimir":
         for pagina in lector.pages:
