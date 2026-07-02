@@ -23,8 +23,8 @@ export default function EditorPDF() {
   const [error, establecerError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [desde, establecerDesde] = useState<number>(1);
-  const [hasta, establecerHasta] = useState<number>(1);
+  const [desde, establecerDesde] = useState<number | string>(1);
+  const [hasta, establecerHasta] = useState<number | string>(1);
   const [totalPaginas, establecerTotalPaginas] = useState<number | null>(null);
 
   const [arrastrandoIndice, establecerArrastrandoIndice] = useState<number | null>(null);
@@ -131,7 +131,14 @@ export default function EditorPDF() {
     establecerProgreso(0);
 
     try {
-      const opciones = operacion === 'dividir' ? { desde, hasta } : {};
+      const numDesde = desde ? Math.max(1, Number(desde)) : 1;
+      const numHasta = hasta 
+        ? (totalPaginas ? Math.min(totalPaginas, Number(hasta)) : Number(hasta))
+        : (totalPaginas || 1);
+      const valDesde = Math.min(numDesde, numHasta);
+      const valHasta = Math.max(numDesde, numHasta);
+
+      const opciones = operacion === 'dividir' ? { desde: valDesde, hasta: valHasta } : {};
       const blob = await editarPDF(archivos, operacion, opciones, (p) => establecerProgreso(p));
       establecerProgreso(100);
       
@@ -272,14 +279,13 @@ export default function EditorPDF() {
             <div className="rango-paginas" style={{ marginTop: 16, padding: 16, background: '#F8FAFC', borderRadius: 8 }}>
               <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12, color: 'var(--color-texto)' }}>Rango de páginas a extraer</h3>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
+                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, color: 'var(--color-secundario)', display: 'block', marginBottom: 4 }}>Desde la página</label>
                   <input
                     type="number"
                     min={1}
-                    max={hasta}
                     value={desde}
-                    onChange={(e) => establecerDesde(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => establecerDesde(e.target.value)}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 14 }}
                   />
                 </div>
@@ -287,10 +293,9 @@ export default function EditorPDF() {
                   <label style={{ fontSize: 12, color: 'var(--color-secundario)', display: 'block', marginBottom: 4 }}>Hasta la página</label>
                   <input
                     type="number"
-                    min={desde}
-                    max={totalPaginas || undefined}
+                    min={1}
                     value={hasta}
-                    onChange={(e) => establecerHasta(Math.max(desde, totalPaginas ? Math.min(totalPaginas, parseInt(e.target.value) || desde) : parseInt(e.target.value) || desde))}
+                    onChange={(e) => establecerHasta(e.target.value)}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 14 }}
                   />
                 </div>
