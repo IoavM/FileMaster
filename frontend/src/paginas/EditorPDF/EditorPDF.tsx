@@ -29,6 +29,13 @@ export default function EditorPDF() {
 
   const [arrastrandoIndice, establecerArrastrandoIndice] = useState<number | null>(null);
 
+  // Estado para detectar dispositivo móvil
+  const [esMovil, establecerEsMovil] = useState(false);
+
+  useEffect(() => {
+    establecerEsMovil(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  }, []);
+
   const obtenerNumeroPaginasPDF = async (archivo: File): Promise<number> => {
     return new Promise((resolve) => {
       const lector = new FileReader();
@@ -205,7 +212,7 @@ export default function EditorPDF() {
                 <div
                   key={indice}
                   className={`archivo-item ${arrastrandoIndice === indice ? 'arrastrando' : ''}`}
-                  draggable={operacion === 'unir'}
+                  draggable={operacion === 'unir' && !esMovil}
                   onDragStart={(e) => alIniciarArrastre(e, indice)}
                   onDragOver={alArrastrarSobreItem}
                   onDragEnd={alFinalizarArrastre}
