@@ -22,6 +22,7 @@ class Configuracion:
         "http://localhost:5174",
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://file-master-chi.vercel.app",
         os.getenv("FRONTEND_URL", ""),
     ])
 

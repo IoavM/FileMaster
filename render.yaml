@@ -11,7 +11,7 @@ services:
       - key: RENDER
         value: produccion
       - key: FRONTEND_URL
-        value: https://filemaster-frontend.onrender.com # Cambiar por tu URL final de frontend
+        value: https://file-master-chi.vercel.app
 
   # Sitio Estático para el Frontend de React
   - type: web
@@ -22,4 +22,4 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     envVars:
       - key: VITE_API_URL
-        value: https://filemaster-backend.onrender.com # Cambiar por tu URL final de backend
+        value: https://filemaster.onrender.com
