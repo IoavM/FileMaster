@@ -11,10 +11,30 @@ import { formatearTamano } from '../../utilidades/formateadores';
 import './AreaSubida.css';
 
 const FORMATOS_VISIBLES = [
-  { etiqueta: 'PDF', clase: 'pdf', icono: FileText, accept: '.pdf' },
-  { etiqueta: 'XLSX', clase: 'xlsx', icono: FileSpreadsheet, accept: '.xls,.xlsx' },
-  { etiqueta: 'DOCX', clase: 'docx', icono: FileText, accept: '.doc,.docx' },
-  { etiqueta: 'JPG/PNG', clase: 'img', icono: FileImage, accept: '.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff,.svg' },
+  {
+    etiqueta: 'PDF',
+    clase: 'pdf',
+    icono: FileText,
+    accept: 'application/pdf,.pdf',
+  },
+  {
+    etiqueta: 'XLSX',
+    clase: 'xlsx',
+    icono: FileSpreadsheet,
+    accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,.xlsx,.xls',
+  },
+  {
+    etiqueta: 'DOCX',
+    clase: 'docx',
+    icono: FileText,
+    accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,.docx,.doc',
+  },
+  {
+    etiqueta: 'JPG/PNG',
+    clase: 'img',
+    icono: FileImage,
+    accept: 'image/jpeg,image/png,image/webp,image/gif,image/bmp,.jpg,.jpeg,.png,.webp,.gif,.bmp',
+  },
 ];
 
 interface PropiedadesAreaSubida {
@@ -29,6 +49,47 @@ interface PropiedadesAreaSubida {
   eliminarArchivo: (id: string) => void;
 }
 
+function BotonFormato({
+  formato,
+  alSeleccionar,
+}: {
+  formato: (typeof FORMATOS_VISIBLES)[0];
+  alSeleccionar: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const localInputRef = useRef<HTMLInputElement | null>(null);
+
+  const alHacerClic = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (localInputRef.current) {
+      localInputRef.current.value = '';
+      localInputRef.current.click();
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={localInputRef}
+        type="file"
+        multiple
+        accept={formato.accept}
+        className="area-subida-input"
+        onChange={alSeleccionar}
+      />
+      <button
+        className="formato-badge"
+        type="button"
+        onClick={alHacerClic}
+        title={`Seleccionar solo archivos ${formato.etiqueta}`}
+      >
+        <formato.icono className={`formato-badge-icono ${formato.clase}`} />
+        {formato.etiqueta}
+      </button>
+    </>
+  );
+}
+
 export default function AreaSubida({
   archivos,
   arrastrando,
@@ -40,16 +101,6 @@ export default function AreaSubida({
   alSeleccionar,
   eliminarArchivo,
 }: PropiedadesAreaSubida) {
-  const inputFiltradoRef = useRef<HTMLInputElement | null>(null);
-
-  const abrirSelectorFiltrado = (accept: string) => {
-    if (inputFiltradoRef.current) {
-      inputFiltradoRef.current.accept = accept;
-      inputFiltradoRef.current.value = '';
-      inputFiltradoRef.current.click();
-    }
-  };
-
   return (
     <div
       className={`area-subida ${arrastrando ? 'arrastrando' : ''}`}
@@ -59,7 +110,7 @@ export default function AreaSubida({
       onClick={abrirSelector}
       id="area-subida"
     >
-      {}
+      {/* Input general */}
       <input
         ref={inputRef}
         type="file"
@@ -69,21 +120,10 @@ export default function AreaSubida({
         accept=".pdf,.doc,.docx,.xls,.xlsx,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tiff,.mp3,.wav,.ogg,.flac,.aac,.mp4,.avi,.mov,.webm,.mkv"
       />
 
-      {/* Input secundario para selección filtrada por formato */}
-      <input
-        ref={inputFiltradoRef}
-        type="file"
-        multiple
-        className="area-subida-input"
-        onChange={alSeleccionar}
-      />
-
-      {}
       <div className="area-subida-icono">
         <CloudUpload />
       </div>
 
-      {}
       <h2 className="area-subida-titulo">Suelta archivos aquí</h2>
       <p className="area-subida-texto">
         o{' '}
@@ -98,23 +138,16 @@ export default function AreaSubida({
         </span>
       </p>
 
-      {}
       <div className="area-subida-formatos" onClick={(e) => e.stopPropagation()}>
         {FORMATOS_VISIBLES.map((formato) => (
-          <button
+          <BotonFormato
             key={formato.etiqueta}
-            className="formato-badge"
-            type="button"
-            onClick={() => abrirSelectorFiltrado(formato.accept)}
-            title={`Seleccionar archivos ${formato.etiqueta}`}
-          >
-            <formato.icono className={`formato-badge-icono ${formato.clase}`} />
-            {formato.etiqueta}
-          </button>
+            formato={formato}
+            alSeleccionar={alSeleccionar}
+          />
         ))}
       </div>
 
-      {}
       {archivos.length > 0 && (
         <div className="area-subida-lista" onClick={(e) => e.stopPropagation()}>
           {archivos.map((archivo) => (
