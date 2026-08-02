@@ -1,0 +1,85 @@
+.pdf-grid-operaciones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 20px;
+}
+
+.tarjeta-operacion-pdf {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #E2E8F0;
+  background: #FFFFFF;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tarjeta-operacion-pdf:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primario);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.tarjeta-operacion-pdf.activa {
+  border-color: var(--color-primario);
+  background: var(--color-primario-suave);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.tarjeta-operacion-icono {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tarjeta-operacion-contenido {
+  flex: 1;
+  min-width: 0;
+}
+
+.tarjeta-operacion-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-neutro);
+  margin: 0 0 2px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tarjeta-operacion-desc {
+  font-size: 12px;
+  color: var(--color-secundario);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.tarjeta-operacion-indicador {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primario);
+}
+
+@media (max-width: 900px) {
+  .pdf-grid-operaciones {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .pdf-grid-operaciones {
+    grid-template-columns: 1fr;
+  }
+}

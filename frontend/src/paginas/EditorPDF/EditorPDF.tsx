@@ -21,6 +21,7 @@ import BarraProgreso from '../../componentes/BarraProgreso/BarraProgreso';
 import { editarPDF, descargarBlob } from '../../servicios/api';
 import { formatearTamano } from '../../utilidades/formateadores';
 import '../Convertir/Convertir.css';
+import './EditorPDF.css';
 
 type OperacionPDF =
   | 'unir'
@@ -38,16 +39,18 @@ const OPERACIONES: {
   etiqueta: string;
   icono: React.ElementType;
   descripcion: string;
+  colorFondo: string;
+  colorIcono: string;
 }[] = [
-  { valor: 'unir', etiqueta: 'Unir PDFs', icono: Merge, descripcion: 'Combinar varios PDFs en uno solo' },
-  { valor: 'dividir', etiqueta: 'Dividir PDF', icono: Scissors, descripcion: 'Separar un PDF en páginas individuales o extraer un rango' },
-  { valor: 'comprimir', etiqueta: 'Comprimir PDF', icono: Minimize2, descripcion: 'Reducir el tamaño del archivo PDF' },
-  { valor: 'rotar', etiqueta: 'Rotar PDF', icono: RotateCw, descripcion: 'Rotar las páginas de un PDF' },
-  { valor: 'proteger', etiqueta: 'Proteger PDF', icono: Lock, descripcion: 'Añadir contraseña y cifrar tu documento PDF' },
-  { valor: 'desbloquear', etiqueta: 'Desbloquear PDF', icono: Unlock, descripcion: 'Eliminar la contraseña de un PDF protegido' },
-  { valor: 'ordenar', etiqueta: 'Ordenar Páginas', icono: ArrowUpDown, descripcion: 'Cambiar el orden de las páginas de tu PDF' },
-  { valor: 'firmar', etiqueta: 'Firmar PDF', icono: PenTool, descripcion: 'Estampar firma digital o imagen en el PDF' },
-  { valor: 'traducir', etiqueta: 'Traducir PDF', icono: Languages, descripcion: 'Traducir el contenido textual del PDF a otro idioma' },
+  { valor: 'unir', etiqueta: 'Unir PDFs', icono: Merge, descripcion: 'Combinar varios PDFs en un único documento', colorFondo: '#DBEAFE', colorIcono: '#2563EB' },
+  { valor: 'dividir', etiqueta: 'Dividir PDF', icono: Scissors, descripcion: 'Separar en páginas individuales o extraer un rango', colorFondo: '#FEE2E2', colorIcono: '#DC2626' },
+  { valor: 'comprimir', etiqueta: 'Comprimir PDF', icono: Minimize2, descripcion: 'Reducir el peso del archivo optimizando su tamaño', colorFondo: '#D1FAE5', colorIcono: '#059669' },
+  { valor: 'rotar', etiqueta: 'Rotar PDF', icono: RotateCw, descripcion: 'Girar la orientación de las páginas a 90°, 180° o 270°', colorFondo: '#FEF3C7', colorIcono: '#D97706' },
+  { valor: 'proteger', etiqueta: 'Proteger PDF', icono: Lock, descripcion: 'Añadir contraseña y cifrar el documento', colorFondo: '#F3E8FF', colorIcono: '#7C3AED' },
+  { valor: 'desbloquear', etiqueta: 'Desbloquear PDF', icono: Unlock, descripcion: 'Eliminar la clave de protección de un PDF', colorFondo: '#FFEDD5', colorIcono: '#EA580C' },
+  { valor: 'ordenar', etiqueta: 'Ordenar Páginas', icono: ArrowUpDown, descripcion: 'Reorganizar visualmente el orden de las páginas', colorFondo: '#E0F2FE', colorIcono: '#0284C7' },
+  { valor: 'firmar', etiqueta: 'Firmar PDF', icono: PenTool, descripcion: 'Estampar firma manuscrita, sello o texto', colorFondo: '#CCFBF1', colorIcono: '#0D9488' },
+  { valor: 'traducir', etiqueta: 'Traducir PDF', icono: Languages, descripcion: 'Traducir el contenido textual del PDF a otros idiomas', colorFondo: '#E0E7FF', colorIcono: '#4F46E5' },
 ];
 
 const IDIOMAS = [
@@ -248,28 +251,40 @@ export default function EditorPDF() {
           </div>
           <h1 className="pagina-herramienta-titulo">Editor PDF Completo</h1>
           <p className="pagina-herramienta-descripcion">
-            Unir, dividir, comprimir, rotar, proteger, desbloquear, reordenar páginas, firmar y traducir PDFs.
+            Suite completa para tus documentos PDF: unir, dividir, comprimir, rotar, proteger con contraseña, desbloquear, reordenar páginas, firmar con sello y traducir textos a múltiples idiomas.
           </p>
         </div>
 
         <div className="panel-herramienta">
           <div className="campo">
-            <label className="campo-etiqueta">Operación</label>
-            <div className="grupo-botones" style={{ flexWrap: 'wrap', gap: 8 }}>
-              {OPERACIONES.map((op) => (
-                <BotonPrimario
-                  key={op.valor}
-                  variante={operacion === op.valor ? 'primario' : 'contorno'}
-                  onClick={() => establecerOperacion(op.valor)}
-                  icono={<op.icono size={16} />}
-                >
-                  {op.etiqueta}
-                </BotonPrimario>
-              ))}
+            <label className="campo-etiqueta">Selecciona una función:</label>
+            <div className="pdf-grid-operaciones">
+              {OPERACIONES.map((op) => {
+                const IconoComp = op.icono;
+                const estaActiva = operacion === op.valor;
+                return (
+                  <div
+                    key={op.valor}
+                    className={`tarjeta-operacion-pdf ${estaActiva ? 'activa' : ''}`}
+                    onClick={() => establecerOperacion(op.valor)}
+                  >
+                    <div
+                      className="tarjeta-operacion-icono"
+                      style={{ background: op.colorFondo, color: op.colorIcono }}
+                    >
+                      <IconoComp size={20} />
+                    </div>
+                    <div className="tarjeta-operacion-contenido">
+                      <div className="tarjeta-operacion-titulo">
+                        <span>{op.etiqueta}</span>
+                        {estaActiva && <span className="tarjeta-operacion-indicador" />}
+                      </div>
+                      <p className="tarjeta-operacion-desc">{op.descripcion}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p style={{ marginTop: 8, fontSize: 13, color: 'var(--color-secundario)' }}>
-              {opActual.descripcion}
-            </p>
           </div>
 
           <input
@@ -508,4 +523,5 @@ export default function EditorPDF() {
     </div>
   );
 }
+
 
