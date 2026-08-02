@@ -244,7 +244,8 @@ export default function EditorPDF() {
       const blob = await editarPDF(archivos, operacion, opciones, (p) => establecerProgreso(p));
       establecerProgreso(100);
 
-      const nombreDescarga = `pdf-${operacion}.pdf`;
+      const nombreBase = archivos[0]?.name.replace(/\.[^/.]+$/, '') || 'documento';
+      const nombreDescarga = `${nombreBase} - (${operacion}).pdf`;
       descargarBlob(blob, nombreDescarga);
     } catch {
       establecerError('Error al procesar el PDF. Verifica la contraseña o la disponibilidad del servidor.');

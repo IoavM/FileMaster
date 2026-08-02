@@ -89,7 +89,7 @@ export default function Inicio() {
       `.${obtenerExtension(archivoActual.nombre)}`,
       '',
     );
-    descargarBlob(resultado, `${nombreBase}.${formatoSalida}`);
+    descargarBlob(resultado, `${nombreBase} - (${formatoSalida}).${formatoSalida}`);
   };
 
   return (
