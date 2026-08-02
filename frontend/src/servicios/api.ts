@@ -87,7 +87,7 @@ export async function textoAVoz(
 
 export async function editarPDF(
   archivos: File[],
-  operacion: 'unir' | 'dividir' | 'comprimir' | 'rotar',
+  operacion: string,
   opciones?: Record<string, unknown>,
   alProgreso?: (progreso: number) => void,
 ): Promise<Blob> {
