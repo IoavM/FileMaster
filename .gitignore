@@ -27,3 +27,8 @@ yarn-debug.log*
 Thumbs.db
 *.suo
 *.sw?
+
+# Archivos de prueba
+prueba*.pdf
+*.bin
+
