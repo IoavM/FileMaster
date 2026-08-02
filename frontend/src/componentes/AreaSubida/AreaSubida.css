@@ -85,6 +85,7 @@
   border: 1px solid var(--color-borde);
   background: var(--color-blanco);
   color: var(--color-neutro);
+  cursor: pointer;
   transition: all var(--transicion);
 }
 

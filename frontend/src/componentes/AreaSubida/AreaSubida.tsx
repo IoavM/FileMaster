@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   CloudUpload,
   FileText,
@@ -10,10 +11,10 @@ import { formatearTamano } from '../../utilidades/formateadores';
 import './AreaSubida.css';
 
 const FORMATOS_VISIBLES = [
-  { etiqueta: 'PDF', clase: 'pdf', icono: FileText },
-  { etiqueta: 'XLSX', clase: 'xlsx', icono: FileSpreadsheet },
-  { etiqueta: 'DOCX', clase: 'docx', icono: FileText },
-  { etiqueta: 'JPG/PNG', clase: 'img', icono: FileImage },
+  { etiqueta: 'PDF', clase: 'pdf', icono: FileText, accept: '.pdf' },
+  { etiqueta: 'XLSX', clase: 'xlsx', icono: FileSpreadsheet, accept: '.xls,.xlsx' },
+  { etiqueta: 'DOCX', clase: 'docx', icono: FileText, accept: '.doc,.docx' },
+  { etiqueta: 'JPG/PNG', clase: 'img', icono: FileImage, accept: '.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff,.svg' },
 ];
 
 interface PropiedadesAreaSubida {
@@ -39,6 +40,16 @@ export default function AreaSubida({
   alSeleccionar,
   eliminarArchivo,
 }: PropiedadesAreaSubida) {
+  const inputFiltradoRef = useRef<HTMLInputElement | null>(null);
+
+  const abrirSelectorFiltrado = (accept: string) => {
+    if (inputFiltradoRef.current) {
+      inputFiltradoRef.current.accept = accept;
+      inputFiltradoRef.current.value = '';
+      inputFiltradoRef.current.click();
+    }
+  };
+
   return (
     <div
       className={`area-subida ${arrastrando ? 'arrastrando' : ''}`}
@@ -56,6 +67,15 @@ export default function AreaSubida({
         className="area-subida-input"
         onChange={alSeleccionar}
         accept=".pdf,.doc,.docx,.xls,.xlsx,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tiff,.mp3,.wav,.ogg,.flac,.aac,.mp4,.avi,.mov,.webm,.mkv"
+      />
+
+      {/* Input secundario para selección filtrada por formato */}
+      <input
+        ref={inputFiltradoRef}
+        type="file"
+        multiple
+        className="area-subida-input"
+        onChange={alSeleccionar}
       />
 
       {}
@@ -81,10 +101,16 @@ export default function AreaSubida({
       {}
       <div className="area-subida-formatos" onClick={(e) => e.stopPropagation()}>
         {FORMATOS_VISIBLES.map((formato) => (
-          <span key={formato.etiqueta} className="formato-badge">
+          <button
+            key={formato.etiqueta}
+            className="formato-badge"
+            type="button"
+            onClick={() => abrirSelectorFiltrado(formato.accept)}
+            title={`Seleccionar archivos ${formato.etiqueta}`}
+          >
             <formato.icono className={`formato-badge-icono ${formato.clase}`} />
             {formato.etiqueta}
-          </span>
+          </button>
         ))}
       </div>
 
