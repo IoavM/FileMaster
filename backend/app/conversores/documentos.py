@@ -34,19 +34,21 @@ def pdf_a_docx(pdf_bytes: bytes) -> bytes:
 
 def pdf_a_imagen(pdf_bytes: bytes, formato: str = "png") -> bytes:
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    formato = formato.lower()
+    fmt = formato.lower()
+    fmt_fitz = "jpeg" if fmt in ("jpg", "jpeg") else fmt
+    matriz = fitz.Matrix(2.0, 2.0)  # Renderizado de alta definición (200 DPI)
     
     if len(doc) == 1:
         pagina = doc[0]
-        pix = pagina.get_pixmap(dpi=150)
-        return pix.tobytes(formato)
+        pix = pagina.get_pixmap(matrix=matriz)
+        return pix.tobytes(fmt_fitz)
     else:
         # Si tiene más de una página, las empaquetamos en un ZIP
         buffer_zip = BytesIO()
         with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as archivo_zip:
             for i, pagina in enumerate(doc):
-                pix = pagina.get_pixmap(dpi=150)
-                archivo_zip.writestr(f"pagina_{i+1}.{formato}", pix.tobytes(formato))
+                pix = pagina.get_pixmap(matrix=matriz)
+                archivo_zip.writestr(f"pagina_{i+1}.{fmt}", pix.tobytes(fmt_fitz))
         return buffer_zip.getvalue()
 
 def docx_a_pdf(docx_bytes: bytes) -> bytes:

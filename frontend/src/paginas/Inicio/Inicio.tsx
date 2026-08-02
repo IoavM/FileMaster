@@ -89,7 +89,9 @@ export default function Inicio() {
       `.${obtenerExtension(archivoActual.nombre)}`,
       '',
     );
-    descargarBlob(resultado, `${nombreBase} - (${formatoSalida}).${formatoSalida}`);
+    const esZip = resultado.type === 'application/zip';
+    const ext = esZip ? 'zip' : formatoSalida;
+    descargarBlob(resultado, `${nombreBase} - (${formatoSalida}).${ext}`);
   };
 
   return (

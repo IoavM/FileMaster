@@ -63,8 +63,10 @@ export default function Convertir() {
         );
 
         const nombreBase = archivoActual.nombre.replace(/\.[^/.]+$/, "");
+        const esZip = blob.type === 'application/zip';
+        const ext = esZip ? 'zip' : formatoSalida;
         nuevosResultados.push({
-          nombre: `${nombreBase}.${formatoSalida}`,
+          nombre: `${nombreBase} - (${formatoSalida}).${ext}`,
           blob
         });
       }
