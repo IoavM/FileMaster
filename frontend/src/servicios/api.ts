@@ -5,7 +5,7 @@ const URL_BASE = import.meta.env.VITE_API_URL ||
 
 const cliente = axios.create({
   baseURL: URL_BASE,
-  timeout: 120000, 
+  timeout: 600000, // 10 minutos para soportar transferencia de archivos de hasta 1GB
 });
 
 export async function convertirArchivo(

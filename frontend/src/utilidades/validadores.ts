@@ -1,5 +1,5 @@
 
-const TAMANO_MAXIMO = 50 * 1024 * 1024;
+const TAMANO_MAXIMO = 1024 * 1024 * 1024; // 1 GB
 
 const TIPOS_PERMITIDOS: Record<string, string[]> = {
   documento: [
@@ -45,7 +45,7 @@ export function validarTamano(archivo: File): { valido: boolean; mensaje?: strin
   if (archivo.size > TAMANO_MAXIMO) {
     return {
       valido: false,
-      mensaje: `El archivo excede el tamaño máximo de 50MB (${(archivo.size / 1024 / 1024).toFixed(1)}MB)`,
+      mensaje: `El archivo excede el tamaño máximo de 1GB (${(archivo.size / 1024 / 1024).toFixed(1)}MB)`,
     };
   }
   return { valido: true };

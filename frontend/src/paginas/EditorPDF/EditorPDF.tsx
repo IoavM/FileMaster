@@ -321,7 +321,7 @@ export default function EditorPDF() {
             <h2 className="area-subida-titulo" style={{ fontSize: 16 }}>
               {operacion === 'unir' ? 'Sube los PDFs a unir' : 'Sube tu PDF'}
             </h2>
-            <p className="area-subida-texto">Archivos PDF — máximo 50MB</p>
+            <p className="area-subida-texto">Archivos PDF — máximo 1GB</p>
           </div>
 
           {/* Lista de archivos */}

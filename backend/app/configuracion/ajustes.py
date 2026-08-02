@@ -14,8 +14,8 @@ class Configuracion:
     DIR_UPLOADS: str = field(default="")
     DIR_OUTPUTS: str = field(default="")
 
-    TAMANO_MAXIMO_MB: int = 50
-    TAMANO_MAXIMO_BYTES: int = 50 * 1024 * 1024
+    TAMANO_MAXIMO_MB: int = 1024
+    TAMANO_MAXIMO_BYTES: int = 1024 * 1024 * 1024
 
     # CORS
     ORIGENES_PERMITIDOS: list[str] = field(default_factory=lambda: [

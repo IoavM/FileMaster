@@ -128,7 +128,7 @@ export default function CompresorImagenes() {
               <Upload />
             </div>
             <h2 className="area-subida-titulo">Sube tus imágenes</h2>
-            <p className="area-subida-texto">JPG, PNG, WEBP — máximo 50MB</p>
+            <p className="area-subida-texto">JPG, PNG, WEBP — máximo 1GB</p>
           </div>
 
           {archivos.length > 0 && (
