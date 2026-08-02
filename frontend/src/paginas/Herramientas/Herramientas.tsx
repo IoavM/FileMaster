@@ -3,8 +3,6 @@ import {
   FileText,
   QrCode,
   Volume2,
-  Play,
-  Eraser,
   ImageDown,
 } from 'lucide-react';
 import TarjetaHerramienta from '../../componentes/TarjetaHerramienta/TarjetaHerramienta';
@@ -60,30 +58,7 @@ const HERRAMIENTAS: { datos: Herramienta; icono: React.ElementType }[] = [
     },
     icono: Volume2,
   },
-  {
-    datos: {
-      id: 'descargador-youtube',
-      titulo: 'Descargador YouTube',
-      descripcion: 'Descarga videos y audio de YouTube en la mejor calidad disponible.',
-      icono: 'Play',
-      categoria: 'video',
-      ruta: '/herramientas/youtube',
-      color: '#DC2626',
-    },
-    icono: Play,
-  },
-  {
-    datos: {
-      id: 'eliminar-fondo',
-      titulo: 'Eliminar Fondo',
-      descripcion: 'Remueve el fondo de cualquier imagen de forma automática e inteligente.',
-      icono: 'Eraser',
-      categoria: 'imagen',
-      ruta: '/herramientas/fondo',
-      color: '#16A34A',
-    },
-    icono: Eraser,
-  },
+
   {
     datos: {
       id: 'compresor-imagenes',

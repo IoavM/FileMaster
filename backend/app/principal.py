@@ -13,8 +13,7 @@ from app.api.rutas_conversion import enrutador_conversion
 from app.api.rutas_pdf import enrutador_pdf
 from app.api.rutas_qr import enrutador_qr
 from app.api.rutas_tts import enrutador_tts
-from app.api.rutas_youtube import enrutador_youtube
-from app.api.rutas_fondo import enrutador_fondo
+
 from app.api.rutas_compresor import enrutador_compresor
 
 @asynccontextmanager
@@ -47,8 +46,7 @@ app.include_router(enrutador_conversion, prefix="/api", tags=["Conversión"])
 app.include_router(enrutador_pdf, prefix="/api", tags=["PDF"])
 app.include_router(enrutador_qr, prefix="/api", tags=["QR"])
 app.include_router(enrutador_tts, prefix="/api", tags=["Texto a Voz"])
-app.include_router(enrutador_youtube, prefix="/api", tags=["YouTube"])
-app.include_router(enrutador_fondo, prefix="/api", tags=["Eliminar Fondo"])
+
 app.include_router(enrutador_compresor, prefix="/api", tags=["Compresor"])
 
 @app.get("/api/salud")

@@ -7,8 +7,7 @@ import Historial from '../paginas/Historial/Historial';
 import EditorPDF from '../paginas/EditorPDF/EditorPDF';
 import GeneradorQR from '../paginas/GeneradorQR/GeneradorQR';
 import TextoAVoz from '../paginas/TextoAVoz/TextoAVoz';
-import DescargadorYouTube from '../paginas/DescargadorYouTube/DescargadorYouTube';
-import EliminarFondo from '../paginas/EliminarFondo/EliminarFondo';
+
 import CompresorImagenes from '../paginas/CompresorImagenes/CompresorImagenes';
 
 const enrutador = createBrowserRouter([
@@ -23,8 +22,7 @@ const enrutador = createBrowserRouter([
       { path: 'herramientas/pdf', element: <EditorPDF /> },
       { path: 'herramientas/qr', element: <GeneradorQR /> },
       { path: 'herramientas/tts', element: <TextoAVoz /> },
-      { path: 'herramientas/youtube', element: <DescargadorYouTube /> },
-      { path: 'herramientas/fondo', element: <EliminarFondo /> },
+
       { path: 'herramientas/compresor', element: <CompresorImagenes /> },
     ],
   },
