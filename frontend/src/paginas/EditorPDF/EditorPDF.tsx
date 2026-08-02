@@ -15,6 +15,8 @@ import {
   ArrowUpDown,
   PenTool,
   Languages,
+  FileImage,
+  X,
 } from 'lucide-react';
 import BotonPrimario from '../../componentes/BotonPrimario/BotonPrimario';
 import BarraProgreso from '../../componentes/BarraProgreso/BarraProgreso';
@@ -69,6 +71,7 @@ export default function EditorPDF() {
   const [progreso, establecerProgreso] = useState(0);
   const [error, establecerError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputFirmaRef = useRef<HTMLInputElement>(null);
 
   // Opciones específicas
   const [desde, establecerDesde] = useState<number | string>(1);
@@ -78,6 +81,7 @@ export default function EditorPDF() {
   const [clave, establecerClave] = useState('');
   const [textoFirma, establecerTextoFirma] = useState('');
   const [imagenFirmaB64, establecerImagenFirmaB64] = useState('');
+  const [nombreFirmaImg, establecerNombreFirmaImg] = useState('');
   const [idiomaDestino, establecerIdiomaDestino] = useState('es');
   const [ordenPaginas, establecerOrdenPaginas] = useState<number[]>([]);
 
@@ -141,11 +145,20 @@ export default function EditorPDF() {
   const alCargarImagenFirma = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    establecerNombreFirmaImg(file.name);
     const reader = new FileReader();
     reader.onloadend = () => {
       establecerImagenFirmaB64(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const quitarImagenFirma = () => {
+    establecerImagenFirmaB64('');
+    establecerNombreFirmaImg('');
+    if (inputFirmaRef.current) {
+      inputFirmaRef.current.value = '';
+    }
   };
 
   const alIniciarArrastre = (e: React.DragEvent, indice: number) => {
@@ -466,11 +479,37 @@ export default function EditorPDF() {
                 />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--color-secundario)', display: 'block', marginBottom: 4 }}>O subir imagen de firma / sello (opcional)</label>
-                <input type="file" accept="image/*" onChange={alCargarImagenFirma} style={{ fontSize: 13 }} />
-                {imagenFirmaB64 && (
-                  <div style={{ marginTop: 8 }}>
-                    <img src={imagenFirmaB64} alt="Firma previa" style={{ maxHeight: 60, borderRadius: 4, border: '1px dashed #CBD5E1' }} />
+                <label style={{ fontSize: 12, color: 'var(--color-secundario)', display: 'block', marginBottom: 6 }}>
+                  O subir imagen de firma / sello (opcional)
+                </label>
+                <input
+                  ref={inputFirmaRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={alCargarImagenFirma}
+                  style={{ display: 'none' }}
+                />
+                {!imagenFirmaB64 ? (
+                  <button
+                    type="button"
+                    className="btn-subir-firma"
+                    onClick={() => inputFirmaRef.current?.click()}
+                  >
+                    <FileImage size={18} />
+                    <span>Seleccionar Imagen de Firma / Sello</span>
+                  </button>
+                ) : (
+                  <div className="preview-firma-contenedor">
+                    <img src={imagenFirmaB64} alt="Firma previa" className="preview-firma-img" />
+                    <span className="preview-firma-nombre">{nombreFirmaImg || 'Firma cargada'}</span>
+                    <button
+                      type="button"
+                      className="btn-quitar-firma"
+                      onClick={quitarImagenFirma}
+                      title="Quitar imagen de firma"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
               </div>
