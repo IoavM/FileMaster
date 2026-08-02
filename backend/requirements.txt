@@ -28,3 +28,5 @@ yt-dlp==2024.8.6
 
 # Utilidades
 aiofiles==24.1.0
+deep-translator==1.11.4
+
