@@ -520,7 +520,7 @@ export default function EditorPDF() {
           {/* OPCIÓN: Traducir PDF */}
           {operacion === 'traducir' && archivos.length > 0 && (
             <div style={{ marginTop: 16, padding: 16, background: '#F8FAFC', borderRadius: 8 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Idioma de Destino</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Idioma al que se va a traducir</h3>
               <select
                 value={idiomaDestino}
                 onChange={(e) => establecerIdiomaDestino(e.target.value)}
