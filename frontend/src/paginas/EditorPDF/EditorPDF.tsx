@@ -245,7 +245,8 @@ export default function EditorPDF() {
       establecerProgreso(100);
 
       const nombreBase = archivos[0]?.name.replace(/\.[^/.]+$/, '') || 'documento';
-      const nombreDescarga = `${nombreBase} - (${operacion}).pdf`;
+      const sufijo = operacion === 'traducir' ? `traducido-${idiomaDestino}` : operacion;
+      const nombreDescarga = `${nombreBase} - (${sufijo}).pdf`;
       descargarBlob(blob, nombreDescarga);
     } catch {
       establecerError('Error al procesar el PDF. Verifica la contraseña o la disponibilidad del servidor.');
@@ -537,7 +538,11 @@ export default function EditorPDF() {
 
           {procesando && (
             <div style={{ marginTop: 20 }}>
-              <BarraProgreso progreso={progreso} etiqueta="Procesando PDF..." estado="convirtiendo" />
+              <BarraProgreso
+                progreso={progreso}
+                etiqueta={operacion === 'traducir' ? 'Traduciendo y maquetando PDF...' : 'Procesando PDF...'}
+                estado="convirtiendo"
+              />
             </div>
           )}
 

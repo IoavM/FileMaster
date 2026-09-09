@@ -6,9 +6,205 @@ unir, dividir, comprimir, rotar, proteger, desbloquear, ordenar, firmar y traduc
 from io import BytesIO
 import zipfile
 import base64
+import re
+import html
+import requests
+from bs4 import BeautifulSoup
 from pypdf import PdfReader, PdfWriter, PdfMerger
 import fitz  # PyMuPDF
-from deep_translator import GoogleTranslator
+
+
+def _traducir_bloque_individual(texto: str, idioma_destino: str = "es", idioma_origen: str = "auto") -> str:
+    """Traduce un segmento de texto usando Google Translate con fallbacks a endpoint gtx y MyMemory."""
+    if not texto or not texto.strip():
+        return texto
+
+    # 1. Google Translate Mobile endpoint con User-Agent móvil (evita bloqueo 500)
+    try:
+        url = "https://translate.google.com/m"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "es,en;q=0.9",
+        }
+        params = {"sl": idioma_origen, "tl": idioma_destino, "q": texto}
+        resp = requests.get(url, params=params, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, "html.parser")
+            el = soup.find("div", {"class": "result-container"})
+            if el:
+                trad = html.unescape(el.get_text().strip())
+                if trad and "Error 500" not in trad and "Please try again" not in trad:
+                    return trad
+    except Exception:
+        pass
+
+    # 2. Fallback: Google Translate client endpoint (gtx)
+    try:
+        url_gtx = "https://translate.googleapis.com/translate_a/single"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        params = {
+            "client": "gtx",
+            "sl": idioma_origen,
+            "tl": idioma_destino,
+            "dt": "t",
+            "q": texto,
+        }
+        resp = requests.get(url_gtx, params=params, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            trad = "".join([part[0] for part in data[0] if part and part[0]]).strip()
+            if trad:
+                return html.unescape(trad)
+    except Exception:
+        pass
+
+    # 3. Fallback: MyMemory API
+    try:
+        mapa_mm = {
+            "es": "es-ES", "en": "en-US", "fr": "fr-FR",
+            "de": "de-DE", "it": "it-IT", "pt": "pt-PT"
+        }
+        src = mapa_mm.get(idioma_origen, "autodetect")
+        tgt = mapa_mm.get(idioma_destino, "es-ES")
+        url_mm = "https://api.mymemory.translated.net/get"
+        resp = requests.get(url_mm, params={"q": texto, "langpair": f"{src}|{tgt}"}, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            trad = data.get("responseData", {}).get("translatedText", "").strip()
+            if trad and "MYMEMORY WARNING" not in trad:
+                return html.unescape(trad)
+    except Exception:
+        pass
+
+    return texto
+
+
+def _agrupar_lineas_inteligente(texto_crudo: str) -> list[str]:
+    """Une líneas del PDF en párrafos coherentes manteniendo encabezados y listas separadas."""
+    texto = re.sub(r'(\w+)-\n(\w+)', r'\1\2', texto_crudo)
+    lineas = [l.strip() for l in texto.split('\n')]
+    parrafos = []
+    actual = ''
+    for l in lineas:
+        if not l:
+            if actual:
+                parrafos.append(actual)
+                actual = ''
+            continue
+        if not actual:
+            actual = l
+            continue
+        es_posible_titulo = len(actual) < 45 and not actual.endswith((',', ';', '-'))
+        es_lista = l.startswith(('-', '*', '•', '·', '1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.'))
+        if es_posible_titulo or es_lista:
+            parrafos.append(actual)
+            actual = l
+        else:
+            actual += ' ' + l
+    if actual:
+        parrafos.append(actual)
+    return parrafos
+
+
+def _traducir_parrafos(parrafos: list[str], idioma_destino: str, cache: dict) -> str:
+    """Traduce un conjunto de párrafos por lotes para minimizar latencia y peticiones."""
+    lotes = []
+    lote_actual = []
+    tamano_actual = 0
+    for p in parrafos:
+        if p in cache:
+            continue
+        if tamano_actual + len(p) > 1200 and lote_actual:
+            lotes.append(lote_actual)
+            lote_actual = [p]
+            tamano_actual = len(p)
+        else:
+            lote_actual.append(p)
+            tamano_actual += len(p) + 2
+    if lote_actual:
+        lotes.append(lote_actual)
+
+    for lote in lotes:
+        texto_unido = '\n\n'.join(lote)
+        traducido_unido = _traducir_bloque_individual(texto_unido, idioma_destino)
+        partes = traducido_unido.split('\n\n')
+        if len(partes) == len(lote):
+            for orig, trad in zip(lote, partes):
+                cache[orig] = trad.strip()
+        else:
+            for orig in lote:
+                if orig not in cache:
+                    cache[orig] = _traducir_bloque_individual(orig, idioma_destino)
+
+    resultado = [cache.get(p, p) for p in parrafos]
+    return '\n\n'.join(resultado)
+
+
+def _renderizar_texto_en_documento(doc_salida: fitz.Document, texto_traducido: str, ancho: float = 595, alto: float = 842):
+    """
+    Inserta el texto traducido en el documento PDF asegurando que NUNCA quede una página en blanco.
+    Si no cabe en una página reduciendo fuente, lo distribuye en páginas consecutivas.
+    """
+    margen_x = 40
+    margen_y = 45
+    rect = fitz.Rect(margen_x, margen_y, ancho - margen_x, alto - margen_y)
+
+    # 1. Intentar ajustar en 1 sola página reduciendo dinámicamente el tamaño de fuente
+    pagina = doc_salida.new_page(width=ancho, height=alto)
+    ajustado = False
+    for sz in [11.0, 10.5, 10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0]:
+        rc = pagina.insert_textbox(rect, texto_traducido, fontsize=sz, fontname="helv")
+        if rc >= 0:
+            ajustado = True
+            break
+
+    if ajustado:
+        return
+
+    # 2. Si excede una página incluso con fuente reducida, fluir a través de páginas consecutivas
+    doc_salida.delete_page(-1)
+    parrafos = [p for p in texto_traducido.split('\n\n') if p.strip()]
+    pagina_actual = doc_salida.new_page(width=ancho, height=alto)
+    acumulado = ''
+    tam_fuente = 9.0
+
+    for p in parrafos:
+        candidato = (acumulado + '\n\n' + p).strip() if acumulado else p
+        doc_temp = fitz.open()
+        p_temp = doc_temp.new_page(width=ancho, height=alto)
+        rc = p_temp.insert_textbox(rect, candidato, fontsize=tam_fuente, fontname="helv")
+        doc_temp.close()
+
+        if rc >= 0:
+            acumulado = candidato
+        else:
+            if acumulado:
+                pagina_actual.insert_textbox(rect, acumulado, fontsize=tam_fuente, fontname="helv")
+                pagina_actual = doc_salida.new_page(width=ancho, height=alto)
+                acumulado = p
+            else:
+                oraciones = p.split('. ')
+                sub_acum = ''
+                for s in oraciones:
+                    s_c = (sub_acum + '. ' + s).strip() if sub_acum else s
+                    doc_temp = fitz.open()
+                    p_temp = doc_temp.new_page(width=ancho, height=alto)
+                    rc_s = p_temp.insert_textbox(rect, s_c, fontsize=tam_fuente, fontname="helv")
+                    doc_temp.close()
+                    if rc_s >= 0:
+                        sub_acum = s_c
+                    else:
+                        pagina_actual.insert_textbox(rect, sub_acum, fontsize=tam_fuente, fontname="helv")
+                        pagina_actual = doc_salida.new_page(width=ancho, height=alto)
+                        sub_acum = s
+                acumulado = sub_acum
+
+    if acumulado:
+        pagina_actual.insert_textbox(rect, acumulado, fontsize=tam_fuente, fontname="helv")
+
 
 def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = None) -> bytes:
     """
@@ -110,24 +306,33 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
 
     elif operacion == "traducir":
         idioma_destino = opciones.get("idioma", "es")
-        traductor = GoogleTranslator(source="auto", target=idioma_destino)
         doc = fitz.open(stream=bytes_entrada, filetype="pdf")
         doc_traducido = fitz.open()
+        cache_traducciones = {}
 
-        for pagina in doc:
-            texto = pagina.get_text()
+        for num_pag, pagina in enumerate(doc):
             rect = pagina.rect
-            nueva_pag = doc_traducido.new_page(width=rect.width, height=rect.height)
-            if texto.strip():
-                try:
-                    texto_trad = traductor.translate(texto)
-                except Exception:
-                    texto_trad = texto
-                nueva_pag.insert_textbox(
-                    fitz.Rect(20, 20, rect.width - 20, rect.height - 20),
-                    texto_trad,
-                    fontsize=11,
-                )
+            texto_crudo = pagina.get_text()
+
+            # Si la página no contiene texto (imagen pura, escaneo, portada o gráfico)
+            if not texto_crudo.strip():
+                doc_traducido.insert_pdf(doc, from_page=num_pag, to_page=num_pag)
+                continue
+
+            parrafos = _agrupar_lineas_inteligente(texto_crudo)
+            if not parrafos:
+                doc_traducido.insert_pdf(doc, from_page=num_pag, to_page=num_pag)
+                continue
+
+            texto_traducido = _traducir_parrafos(parrafos, idioma_destino, cache_traducciones)
+
+            _renderizar_texto_en_documento(
+                doc_salida=doc_traducido,
+                texto_traducido=texto_traducido,
+                ancho=rect.width,
+                alto=rect.height,
+            )
+
         buffer = BytesIO()
         doc_traducido.save(buffer)
         return buffer.getvalue()
