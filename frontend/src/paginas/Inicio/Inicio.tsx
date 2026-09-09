@@ -91,7 +91,7 @@ export default function Inicio() {
     );
     const esZip = resultado.type === 'application/zip';
     const ext = esZip ? 'zip' : formatoSalida;
-    descargarBlob(resultado, `${nombreBase} - (${formatoSalida}).${ext}`);
+    descargarBlob(resultado, `${nombreBase}-convertido.${ext}`);
   };
 
   return (

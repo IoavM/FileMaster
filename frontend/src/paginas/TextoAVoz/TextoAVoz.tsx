@@ -42,7 +42,7 @@ export default function TextoAVoz() {
     if (!resultado) return;
     fetch(resultado)
       .then((r) => r.blob())
-      .then((blob) => descargarBlob(blob, 'texto-a-voz.mp3'));
+      .then((blob) => descargarBlob(blob, 'audio-generado.mp3'));
   };
 
   return (

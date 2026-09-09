@@ -307,34 +307,104 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
     elif operacion == "traducir":
         idioma_destino = opciones.get("idioma", "es")
         doc = fitz.open(stream=bytes_entrada, filetype="pdf")
-        doc_traducido = fitz.open()
         cache_traducciones = {}
 
-        for num_pag, pagina in enumerate(doc):
-            rect = pagina.rect
-            texto_crudo = pagina.get_text()
+        for pagina in doc:
+            d = pagina.get_text("dict")
+            blocks = d.get("blocks", [])
+            blocks_a_reemplazar = []
 
-            # Si la página no contiene texto (imagen pura, escaneo, portada o gráfico)
-            if not texto_crudo.strip():
-                doc_traducido.insert_pdf(doc, from_page=num_pag, to_page=num_pag)
+            for b in blocks:
+                if b.get("type") == 0:  # Bloque de texto
+                    lines_text = []
+                    sizes = []
+                    colors = []
+                    for line in b.get("lines", []):
+                        spans = line.get("spans", [])
+                        line_str = "".join([s.get("text", "") for s in spans]).strip()
+                        if line_str:
+                            lines_text.append(line_str)
+                            for s in spans:
+                                sizes.append(s.get("size", 11.0))
+                                colors.append(s.get("color", 0))
+
+                    if not lines_text:
+                        continue
+
+                    # Unir líneas respetando palabras cortadas con guión
+                    orig_text = ""
+                    for linea in lines_text:
+                        if orig_text.endswith("-"):
+                            orig_text = orig_text[:-1] + linea
+                        elif orig_text:
+                            orig_text += " " + linea
+                        else:
+                            orig_text = linea
+                    orig_text = orig_text.strip()
+
+                    if not orig_text:
+                        continue
+
+                    avg_size = sum(sizes) / len(sizes) if sizes else 11.0
+                    c_int = colors[0] if colors else 0
+                    r = ((c_int >> 16) & 255) / 255.0
+                    g = ((c_int >> 8) & 255) / 255.0
+                    b_col = (c_int & 255) / 255.0
+
+                    rect = fitz.Rect(b["bbox"])
+                    blocks_a_reemplazar.append({
+                        "rect": rect,
+                        "orig": orig_text,
+                        "size": avg_size,
+                        "color": (r, g, b_col),
+                    })
+
+            if not blocks_a_reemplazar:
+                # Página sin bloques de texto (imagen pura, escaneo, etc.): se mantiene intacta
                 continue
 
-            parrafos = _agrupar_lineas_inteligente(texto_crudo)
-            if not parrafos:
-                doc_traducido.insert_pdf(doc, from_page=num_pag, to_page=num_pag)
-                continue
+            # Traducir los textos de los bloques (por lotes para velocidad)
+            textos_pendientes = [item["orig"] for item in blocks_a_reemplazar if item["orig"] not in cache_traducciones]
+            if textos_pendientes:
+                _traducir_parrafos(textos_pendientes, idioma_destino, cache_traducciones)
 
-            texto_traducido = _traducir_parrafos(parrafos, idioma_destino, cache_traducciones)
+            # 1. Redactar el texto original con fill=None para no alterar el fondo ni gráficos
+            for item in blocks_a_reemplazar:
+                pagina.add_redact_annot(item["rect"], fill=None)
 
-            _renderizar_texto_en_documento(
-                doc_salida=doc_traducido,
-                texto_traducido=texto_traducido,
-                ancho=rect.width,
-                alto=rect.height,
-            )
+            pagina.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+
+            # 2. Insertar el texto traducido en la posición exacta del bloque original
+            for item in blocks_a_reemplazar:
+                rect = item["rect"]
+                trad = cache_traducciones.get(item["orig"], item["orig"])
+                col = item["color"]
+                orig_size = item["size"]
+
+                # Holgura de margen para permitir el flujo natural del texto traducido
+                target_rect = fitz.Rect(
+                    rect.x0,
+                    rect.y0,
+                    min(pagina.rect.width - 15, max(rect.x1 + 15, rect.x0 + 60)),
+                    min(pagina.rect.height - 15, rect.y1 + 25)
+                )
+
+                curr_size = orig_size
+                escrito = False
+                while curr_size >= 6.0:
+                    rc = pagina.insert_textbox(target_rect, trad, fontsize=curr_size, color=col, fontname="helv")
+                    if rc >= 0:
+                        escrito = True
+                        break
+                    curr_size -= 0.5
+
+                if not escrito:
+                    # Si no cupo, extender hacia abajo el área disponible
+                    target_rect.y1 = min(pagina.rect.height - 10, target_rect.y1 + 45)
+                    pagina.insert_textbox(target_rect, trad, fontsize=6.5, color=col, fontname="helv")
 
         buffer = BytesIO()
-        doc_traducido.save(buffer)
+        doc.save(buffer)
         return buffer.getvalue()
 
     lector = PdfReader(BytesIO(bytes_entrada))

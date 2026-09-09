@@ -62,7 +62,7 @@ async def convertir(
                     return Response(
                         content=bytes_salida,
                         media_type="application/zip",
-                        headers={"Content-Disposition": "attachment; filename=paginas_imagen.zip"}
+                        headers={"Content-Disposition": "attachment; filename=paginas-convertidas.zip"}
                     )
             
             if ext_salida == "pdf":

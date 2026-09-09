@@ -87,7 +87,11 @@ export default function CompresorImagenes() {
     if (resultados.length === 0) return;
 
     if (resultados.length === 1) {
-      descargarBlob(resultados[0].blob, `comprimido-${resultados[0].nombre}`);
+      const nombreOrig = resultados[0].nombre;
+      const idx = nombreOrig.lastIndexOf('.');
+      const base = idx !== -1 ? nombreOrig.slice(0, idx) : nombreOrig;
+      const ext = idx !== -1 ? nombreOrig.slice(idx + 1) : 'jpg';
+      descargarBlob(resultados[0].blob, `${base}-comprimido.${ext}`);
     } else {
       establecerEstadoProcesamiento('Generando archivo ZIP...');
       const zip = new JSZip();

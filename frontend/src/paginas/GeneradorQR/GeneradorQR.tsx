@@ -34,7 +34,7 @@ export default function GeneradorQR() {
     if (!resultado) return;
     fetch(resultado)
       .then((r) => r.blob())
-      .then((blob) => descargarBlob(blob, 'codigo-qr.png'));
+      .then((blob) => descargarBlob(blob, 'qr-generado.png'));
   };
 
   return (

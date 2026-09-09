@@ -244,9 +244,21 @@ export default function EditorPDF() {
       const blob = await editarPDF(archivos, operacion, opciones, (p) => establecerProgreso(p));
       establecerProgreso(100);
 
+      const PARTICIPIOS: Record<OperacionPDF, string> = {
+        unir: 'unido',
+        dividir: 'dividido',
+        comprimir: 'comprimido',
+        rotar: 'rotado',
+        proteger: 'protegido',
+        desbloquear: 'desbloqueado',
+        ordenar: 'ordenado',
+        firmar: 'firmado',
+        traducir: 'traducido',
+      };
+
       const nombreBase = archivos[0]?.name.replace(/\.[^/.]+$/, '') || 'documento';
-      const sufijo = operacion === 'traducir' ? `traducido-${idiomaDestino}` : operacion;
-      const nombreDescarga = `${nombreBase} - (${sufijo}).pdf`;
+      const participio = PARTICIPIOS[operacion] || operacion;
+      const nombreDescarga = `${nombreBase}-${participio}.pdf`;
       descargarBlob(blob, nombreDescarga);
     } catch {
       establecerError('Error al procesar el PDF. Verifica la contraseña o la disponibilidad del servidor.');

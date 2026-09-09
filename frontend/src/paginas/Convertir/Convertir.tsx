@@ -66,7 +66,7 @@ export default function Convertir() {
         const esZip = blob.type === 'application/zip';
         const ext = esZip ? 'zip' : formatoSalida;
         nuevosResultados.push({
-          nombre: `${nombreBase} - (${formatoSalida}).${ext}`,
+          nombre: `${nombreBase}-convertido.${ext}`,
           blob
         });
       }

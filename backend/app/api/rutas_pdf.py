@@ -25,21 +25,35 @@ async def editar_pdf(
         
     bytes_salida = procesar_pdf(lista_bytes, operacion, dict_opciones)
     
+    PARTICIPIOS_PDF = {
+        "unir": "unido",
+        "dividir": "dividido",
+        "comprimir": "comprimido",
+        "rotar": "rotado",
+        "proteger": "protegido",
+        "desbloquear": "desbloqueado",
+        "ordenar": "ordenado",
+        "firmar": "firmado",
+        "traducir": "traducido",
+    }
+    participio = PARTICIPIOS_PDF.get(operacion, operacion)
+
     if operacion == "dividir":
         if "desde" in dict_opciones or "hasta" in dict_opciones:
             return Response(
                 content=bytes_salida,
                 media_type="application/pdf",
-                headers={"Content-Disposition": "attachment; filename=pdf_dividido.pdf"}
+                headers={"Content-Disposition": "attachment; filename=archivo-dividido.pdf"}
             )
         return Response(
             content=bytes_salida,
             media_type="application/zip",
-            headers={"Content-Disposition": "attachment; filename=paginas_pdf.zip"}
+            headers={"Content-Disposition": "attachment; filename=paginas-divididas.zip"}
         )
         
     return Response(
         content=bytes_salida,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=pdf_{operacion}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=archivo-{participio}.pdf"}
     )
+
