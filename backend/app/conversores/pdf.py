@@ -319,6 +319,7 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
                     lines_text = []
                     sizes = []
                     colors = []
+                    spans_all = []
                     for line in b.get("lines", []):
                         spans = line.get("spans", [])
                         line_str = "".join([s.get("text", "") for s in spans]).strip()
@@ -327,6 +328,7 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
                             for s in spans:
                                 sizes.append(s.get("size", 11.0))
                                 colors.append(s.get("color", 0))
+                                spans_all.append(s)
 
                     if not lines_text:
                         continue
@@ -351,12 +353,24 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
                     g = ((c_int >> 8) & 255) / 255.0
                     b_col = (c_int & 255) / 255.0
 
+                    is_bold = any((s.get("flags", 0) & 16) != 0 or "bold" in s.get("font", "").lower() for s in spans_all)
+                    is_italic = any((s.get("flags", 0) & 2) != 0 or "italic" in s.get("font", "").lower() or "oblique" in s.get("font", "").lower() for s in spans_all)
+                    if is_bold and is_italic:
+                        fn = "hebi"
+                    elif is_bold:
+                        fn = "hebo"
+                    elif is_italic:
+                        fn = "heit"
+                    else:
+                        fn = "helv"
+
                     rect = fitz.Rect(b["bbox"])
                     blocks_a_reemplazar.append({
                         "rect": rect,
                         "orig": orig_text,
                         "size": avg_size,
                         "color": (r, g, b_col),
+                        "fontname": fn,
                     })
 
             if not blocks_a_reemplazar:
@@ -374,34 +388,72 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
 
             pagina.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
 
-            # 2. Insertar el texto traducido en la posición exacta del bloque original
-            for item in blocks_a_reemplazar:
+            page_w = pagina.rect.width
+            page_h = pagina.rect.height
+
+            # 2. Insertar el texto traducido con cálculo estricto de anti-colisión
+            for i, item in enumerate(blocks_a_reemplazar):
                 rect = item["rect"]
                 trad = cache_traducciones.get(item["orig"], item["orig"])
                 col = item["color"]
                 orig_size = item["size"]
+                fn = item["fontname"]
 
-                # Holgura de margen para permitir el flujo natural del texto traducido
-                target_rect = fitz.Rect(
-                    rect.x0,
-                    rect.y0,
-                    min(pagina.rect.width - 15, max(rect.x1 + 15, rect.x0 + 60)),
-                    min(pagina.rect.height - 15, rect.y1 + 25)
-                )
+                mid_x = (rect.x0 + rect.x1) / 2
+                is_centered = abs(mid_x - page_w / 2) < 30
+                is_wide = (rect.x1 - rect.x0) > (page_w * 0.45)
 
+                # Calcular el límite vertical inferior máximo (max_y1) para no solaparse con ningún bloque inferior
+                next_y0 = page_h - 20
+                for j, other in enumerate(blocks_a_reemplazar):
+                    if i == j:
+                        continue
+                    o_rect = other["rect"]
+                    if o_rect.y0 >= rect.y0 + 3:
+                        h_overlap = max(rect.x0, o_rect.x0) < min(rect.x1, o_rect.x1) + 15
+                        if is_centered or is_wide or h_overlap:
+                            if o_rect.y0 < next_y0:
+                                next_y0 = o_rect.y0
+
+                # Límite estricto: el texto actual NUNCA puede invadir el espacio del bloque inferior
+                max_y1 = max(rect.y1, next_y0 - 2)
+
+                # Calcular límites horizontales y alineación
+                if is_centered:
+                    align = fitz.TEXT_ALIGN_CENTER
+                    margin = min(rect.x0, page_w - rect.x1)
+                    target_x0 = max(35, margin - 15)
+                    target_x1 = min(page_w - 35, page_w - target_x0)
+                else:
+                    align = fitz.TEXT_ALIGN_LEFT
+                    target_x0 = rect.x0
+                    # Detectar si hay otro bloque a la derecha en la misma franja horizontal
+                    next_x0 = page_w - 20
+                    for j, other in enumerate(blocks_a_reemplazar):
+                        if i == j:
+                            continue
+                        o_rect = other["rect"]
+                        v_overlap = max(rect.y0, o_rect.y0) < min(rect.y1, o_rect.y1)
+                        if v_overlap and o_rect.x0 >= rect.x1 - 5:
+                            if o_rect.x0 < next_x0:
+                                next_x0 = o_rect.x0
+                    target_x1 = max(rect.x1, next_x0 - 5)
+
+                target_rect = fitz.Rect(target_x0, rect.y0, target_x1, max_y1)
+
+                # Autoajustar tamaño tipográfico para que encaje perfectamente dentro de los límites estrictos
                 curr_size = orig_size
                 escrito = False
-                while curr_size >= 6.0:
-                    rc = pagina.insert_textbox(target_rect, trad, fontsize=curr_size, color=col, fontname="helv")
+                while curr_size >= 5.0:
+                    rc = pagina.insert_textbox(target_rect, trad, fontsize=curr_size, color=col, fontname=fn, align=align)
                     if rc >= 0:
                         escrito = True
                         break
-                    curr_size -= 0.5
+                    curr_size -= 0.3
 
                 if not escrito:
-                    # Si no cupo, extender hacia abajo el área disponible
-                    target_rect.y1 = min(pagina.rect.height - 10, target_rect.y1 + 45)
-                    pagina.insert_textbox(target_rect, trad, fontsize=6.5, color=col, fontname="helv")
+                    pagina.insert_textbox(target_rect, trad, fontsize=5.0, color=col, fontname=fn, align=align)
+
 
         buffer = BytesIO()
         doc.save(buffer)
