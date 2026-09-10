@@ -4,6 +4,7 @@ import {
   QrCode,
   Volume2,
   ImageDown,
+  Bot,
 } from 'lucide-react';
 import TarjetaHerramienta from '../../componentes/TarjetaHerramienta/TarjetaHerramienta';
 import type { Herramienta } from '../../interfaces/tipos';
@@ -70,6 +71,18 @@ const HERRAMIENTAS: { datos: Herramienta; icono: React.ElementType }[] = [
       color: '#F59E0B',
     },
     icono: ImageDown,
+  },
+  {
+    datos: {
+      id: 'detector-ia',
+      titulo: 'Detector y Humanizador IA',
+      descripcion: 'Detecta texto generado por IA y humanízalo adaptándolo a tu propio estilo.',
+      icono: 'Bot',
+      categoria: 'utilidad',
+      ruta: '/herramientas/detector-ia',
+      color: '#4F46E5',
+    },
+    icono: Bot,
   },
 ];
 

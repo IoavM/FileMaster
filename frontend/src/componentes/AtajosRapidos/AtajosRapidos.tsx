@@ -4,11 +4,20 @@ import {
   FileImage,
   FileSpreadsheet,
   Merge,
+  Bot,
   ChevronRight,
 } from 'lucide-react';
 import './AtajosRapidos.css';
 
 const ATAJOS = [
+  {
+    id: 'detector-ia',
+    titulo: 'Detector y Humanizador IA',
+    icono: Bot,
+    colorFondo: '#EEF2FF',
+    colorIcono: '#4F46E5',
+    ruta: '/herramientas/detector-ia',
+  },
   {
     id: 'pdf-a-word',
     titulo: 'PDF a Word',

@@ -9,6 +9,7 @@ import GeneradorQR from '../paginas/GeneradorQR/GeneradorQR';
 import TextoAVoz from '../paginas/TextoAVoz/TextoAVoz';
 
 import CompresorImagenes from '../paginas/CompresorImagenes/CompresorImagenes';
+import DetectorHumanizador from '../paginas/DetectorHumanizador/DetectorHumanizador';
 
 const enrutador = createBrowserRouter([
   {
@@ -22,10 +23,11 @@ const enrutador = createBrowserRouter([
       { path: 'herramientas/pdf', element: <EditorPDF /> },
       { path: 'herramientas/qr', element: <GeneradorQR /> },
       { path: 'herramientas/tts', element: <TextoAVoz /> },
-
       { path: 'herramientas/compresor', element: <CompresorImagenes /> },
+      { path: 'herramientas/detector-ia', element: <DetectorHumanizador /> },
     ],
   },
 ]);
 
 export default enrutador;
+

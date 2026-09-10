@@ -15,6 +15,7 @@ from app.api.rutas_qr import enrutador_qr
 from app.api.rutas_tts import enrutador_tts
 
 from app.api.rutas_compresor import enrutador_compresor
+from app.api.rutas_detector_ia import enrutador_detector_ia
 
 @asynccontextmanager
 async def ciclo_vida(app: FastAPI):
@@ -46,8 +47,8 @@ app.include_router(enrutador_conversion, prefix="/api", tags=["Conversión"])
 app.include_router(enrutador_pdf, prefix="/api", tags=["PDF"])
 app.include_router(enrutador_qr, prefix="/api", tags=["QR"])
 app.include_router(enrutador_tts, prefix="/api", tags=["Texto a Voz"])
-
 app.include_router(enrutador_compresor, prefix="/api", tags=["Compresor"])
+app.include_router(enrutador_detector_ia, prefix="/api", tags=["Detector y Humanizador IA"])
 
 @app.get("/api/salud")
 async def verificar_salud():
