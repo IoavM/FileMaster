@@ -82,33 +82,6 @@ def _traducir_bloque_individual(texto: str, idioma_destino: str = "es", idioma_o
     return texto
 
 
-def _agrupar_lineas_inteligente(texto_crudo: str) -> list[str]:
-    """Une líneas del PDF en párrafos coherentes manteniendo encabezados y listas separadas."""
-    texto = re.sub(r'(\w+)-\n(\w+)', r'\1\2', texto_crudo)
-    lineas = [l.strip() for l in texto.split('\n')]
-    parrafos = []
-    actual = ''
-    for l in lineas:
-        if not l:
-            if actual:
-                parrafos.append(actual)
-                actual = ''
-            continue
-        if not actual:
-            actual = l
-            continue
-        es_posible_titulo = len(actual) < 45 and not actual.endswith((',', ';', '-'))
-        es_lista = l.startswith(('-', '*', '•', '·', '1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.'))
-        if es_posible_titulo or es_lista:
-            parrafos.append(actual)
-            actual = l
-        else:
-            actual += ' ' + l
-    if actual:
-        parrafos.append(actual)
-    return parrafos
-
-
 def _traducir_parrafos(parrafos: list[str], idioma_destino: str, cache: dict) -> str:
     """Traduce un conjunto de párrafos por lotes para minimizar latencia y peticiones."""
     lotes = []
@@ -116,6 +89,10 @@ def _traducir_parrafos(parrafos: list[str], idioma_destino: str, cache: dict) ->
     tamano_actual = 0
     for p in parrafos:
         if p in cache:
+            continue
+        # Evitar traducir cadenas sin letras (fórmulas, números, referencias)
+        if not re.search(r'[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]{2,}', p):
+            cache[p] = p
             continue
         if tamano_actual + len(p) > 1200 and lote_actual:
             lotes.append(lote_actual)
@@ -142,68 +119,6 @@ def _traducir_parrafos(parrafos: list[str], idioma_destino: str, cache: dict) ->
     resultado = [cache.get(p, p) for p in parrafos]
     return '\n\n'.join(resultado)
 
-
-def _renderizar_texto_en_documento(doc_salida: fitz.Document, texto_traducido: str, ancho: float = 595, alto: float = 842):
-    """
-    Inserta el texto traducido en el documento PDF asegurando que NUNCA quede una página en blanco.
-    Si no cabe en una página reduciendo fuente, lo distribuye en páginas consecutivas.
-    """
-    margen_x = 40
-    margen_y = 45
-    rect = fitz.Rect(margen_x, margen_y, ancho - margen_x, alto - margen_y)
-
-    # 1. Intentar ajustar en 1 sola página reduciendo dinámicamente el tamaño de fuente
-    pagina = doc_salida.new_page(width=ancho, height=alto)
-    ajustado = False
-    for sz in [11.0, 10.5, 10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0]:
-        rc = pagina.insert_textbox(rect, texto_traducido, fontsize=sz, fontname="helv")
-        if rc >= 0:
-            ajustado = True
-            break
-
-    if ajustado:
-        return
-
-    # 2. Si excede una página incluso con fuente reducida, fluir a través de páginas consecutivas
-    doc_salida.delete_page(-1)
-    parrafos = [p for p in texto_traducido.split('\n\n') if p.strip()]
-    pagina_actual = doc_salida.new_page(width=ancho, height=alto)
-    acumulado = ''
-    tam_fuente = 9.0
-
-    for p in parrafos:
-        candidato = (acumulado + '\n\n' + p).strip() if acumulado else p
-        doc_temp = fitz.open()
-        p_temp = doc_temp.new_page(width=ancho, height=alto)
-        rc = p_temp.insert_textbox(rect, candidato, fontsize=tam_fuente, fontname="helv")
-        doc_temp.close()
-
-        if rc >= 0:
-            acumulado = candidato
-        else:
-            if acumulado:
-                pagina_actual.insert_textbox(rect, acumulado, fontsize=tam_fuente, fontname="helv")
-                pagina_actual = doc_salida.new_page(width=ancho, height=alto)
-                acumulado = p
-            else:
-                oraciones = p.split('. ')
-                sub_acum = ''
-                for s in oraciones:
-                    s_c = (sub_acum + '. ' + s).strip() if sub_acum else s
-                    doc_temp = fitz.open()
-                    p_temp = doc_temp.new_page(width=ancho, height=alto)
-                    rc_s = p_temp.insert_textbox(rect, s_c, fontsize=tam_fuente, fontname="helv")
-                    doc_temp.close()
-                    if rc_s >= 0:
-                        sub_acum = s_c
-                    else:
-                        pagina_actual.insert_textbox(rect, sub_acum, fontsize=tam_fuente, fontname="helv")
-                        pagina_actual = doc_salida.new_page(width=ancho, height=alto)
-                        sub_acum = s
-                acumulado = sub_acum
-
-    if acumulado:
-        pagina_actual.insert_textbox(rect, acumulado, fontsize=tam_fuente, fontname="helv")
 
 
 def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = None) -> bytes:
@@ -310,150 +225,287 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
         cache_traducciones = {}
 
         for pagina in doc:
-            d = pagina.get_text("dict")
-            blocks = d.get("blocks", [])
-            blocks_a_reemplazar = []
-
-            for b in blocks:
-                if b.get("type") == 0:  # Bloque de texto
-                    lines_text = []
-                    sizes = []
-                    colors = []
-                    spans_all = []
-                    for line in b.get("lines", []):
-                        spans = line.get("spans", [])
-                        line_str = "".join([s.get("text", "") for s in spans]).strip()
-                        if line_str:
-                            lines_text.append(line_str)
-                            for s in spans:
-                                sizes.append(s.get("size", 11.0))
-                                colors.append(s.get("color", 0))
-                                spans_all.append(s)
-
-                    if not lines_text:
-                        continue
-
-                    # Unir líneas respetando palabras cortadas con guión
-                    orig_text = ""
-                    for linea in lines_text:
-                        if orig_text.endswith("-"):
-                            orig_text = orig_text[:-1] + linea
-                        elif orig_text:
-                            orig_text += " " + linea
-                        else:
-                            orig_text = linea
-                    orig_text = orig_text.strip()
-
-                    if not orig_text:
-                        continue
-
-                    avg_size = sum(sizes) / len(sizes) if sizes else 11.0
-                    c_int = colors[0] if colors else 0
-                    r = ((c_int >> 16) & 255) / 255.0
-                    g = ((c_int >> 8) & 255) / 255.0
-                    b_col = (c_int & 255) / 255.0
-
-                    is_bold = any((s.get("flags", 0) & 16) != 0 or "bold" in s.get("font", "").lower() for s in spans_all)
-                    is_italic = any((s.get("flags", 0) & 2) != 0 or "italic" in s.get("font", "").lower() or "oblique" in s.get("font", "").lower() for s in spans_all)
-                    if is_bold and is_italic:
-                        fn = "hebi"
-                    elif is_bold:
-                        fn = "hebo"
-                    elif is_italic:
-                        fn = "heit"
-                    else:
-                        fn = "helv"
-
-                    rect = fitz.Rect(b["bbox"])
-                    blocks_a_reemplazar.append({
-                        "rect": rect,
-                        "orig": orig_text,
-                        "size": avg_size,
-                        "color": (r, g, b_col),
-                        "fontname": fn,
-                    })
-
-            if not blocks_a_reemplazar:
-                # Página sin bloques de texto (imagen pura, escaneo, etc.): se mantiene intacta
-                continue
-
-            # Traducir los textos de los bloques (por lotes para velocidad)
-            textos_pendientes = [item["orig"] for item in blocks_a_reemplazar if item["orig"] not in cache_traducciones]
-            if textos_pendientes:
-                _traducir_parrafos(textos_pendientes, idioma_destino, cache_traducciones)
-
-            # 1. Redactar el texto original con fill=None para no alterar el fondo ni gráficos
-            for item in blocks_a_reemplazar:
-                pagina.add_redact_annot(item["rect"], fill=None)
-
-            pagina.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
-
             page_w = pagina.rect.width
             page_h = pagina.rect.height
 
-            # 2. Insertar el texto traducido con cálculo estricto de anti-colisión
-            for i, item in enumerate(blocks_a_reemplazar):
-                rect = item["rect"]
-                trad = cache_traducciones.get(item["orig"], item["orig"])
-                col = item["color"]
-                orig_size = item["size"]
-                fn = item["fontname"]
+            # 1. Detectar todos los obstáculos gráficos (imágenes raster y dibujos vectoriales)
+            obstaculos = []
+            for info in pagina.get_image_info(xrefs=True):
+                r = fitz.Rect(info["bbox"])
+                if r.width > 12 and r.height > 12:
+                    obstaculos.append(r)
+            for drw in pagina.get_drawings():
+                r = fitz.Rect(drw["rect"])
+                if r.width > 20 and r.height > 20:
+                    obstaculos.append(r)
 
-                mid_x = (rect.x0 + rect.x1) / 2
-                is_centered = abs(mid_x - page_w / 2) < 30
-                is_wide = (rect.x1 - rect.x0) > (page_w * 0.45)
+            # 2. Extraer bloques y determinar si la página usa layout de 2 o más columnas
+            d = pagina.get_text("dict")
+            blocks = d.get("blocks", [])
 
-                # Calcular el límite vertical inferior máximo (max_y1) para no solaparse con ningún bloque inferior
-                next_y0 = page_h - 20
-                for j, other in enumerate(blocks_a_reemplazar):
+            anchos_validos = []
+            for b in blocks:
+                if b.get("type") == 0:
+                    r = fitz.Rect(b["bbox"])
+                    if r.width > 30 and r.height > 8:
+                        anchos_validos.append(r.width)
+
+            es_dos_columnas = False
+            if len(anchos_validos) >= 3:
+                angostos = sum(1 for w in anchos_validos if w < page_w * 0.48)
+                if angostos / len(anchos_validos) >= 0.5:
+                    es_dos_columnas = True
+
+            # 3. Descomponer cada bloque en unidades homogéneas (evitar mezclar títulos con párrafos o puntos y aparte)
+            unidades = []
+            for b in blocks:
+                if b.get("type") != 0:
+                    continue
+                lineas = b.get("lines", [])
+                if not lineas:
+                    continue
+
+                segmentos = []
+                seg_actual = []
+
+                for l in lineas:
+                    spans = l.get("spans", [])
+                    txt_linea = "".join(s.get("text", "") for s in spans).strip()
+                    if not txt_linea:
+                        continue
+
+                    l_chars = sum(len(s.get("text", "")) for s in spans)
+                    b_chars = sum(len(s.get("text", "")) for s in spans if (s.get("flags", 0) & 16) or "bold" in s.get("font", "").lower() or "black" in s.get("font", "").lower())
+                    it_chars = sum(len(s.get("text", "")) for s in spans if (s.get("flags", 0) & 2) or "italic" in s.get("font", "").lower() or "oblique" in s.get("font", "").lower())
+
+                    es_bold = (b_chars / max(1, l_chars)) > 0.45
+                    es_italic = (it_chars / max(1, l_chars)) > 0.45
+                    avg_sz = sum(s.get("size", 10.0) * len(s.get("text", "")) for s in spans) / max(1, l_chars)
+
+                    iniciar_nuevo = False
+                    if seg_actual:
+                        prev = seg_actual[-1]
+                        # Cambio en estilo negrita (ej. Título en negrita seguido de texto normal)
+                        if prev["bold"] != es_bold:
+                            iniciar_nuevo = True
+                        # Cambio notable en tamaño tipográfico
+                        elif abs(prev["size"] - avg_sz) > 1.3:
+                            iniciar_nuevo = True
+                        else:
+                            prev_txt = prev["text"].strip()
+                            ends_punct = prev_txt.endswith((".", ":", "!", "?"))
+                            gap_y = l["bbox"][1] - prev["bbox"][3]
+                            line_h = prev["bbox"][3] - prev["bbox"][1]
+                            is_indented = (l["bbox"][0] - prev["bbox"][0]) > 6.0
+                            is_short = prev["bbox"][2] < (b["bbox"][2] - 18.0)
+
+                            # Punto y aparte detectable
+                            if ends_punct and (is_indented or is_short or gap_y > 1.35 * line_h):
+                                iniciar_nuevo = True
+
+                    if iniciar_nuevo and seg_actual:
+                        segmentos.append(seg_actual)
+                        seg_actual = []
+
+                    seg_actual.append({
+                        "line": l,
+                        "text": txt_linea,
+                        "bold": es_bold,
+                        "italic": es_italic,
+                        "size": avg_sz,
+                        "bbox": fitz.Rect(l["bbox"]),
+                        "spans": spans
+                    })
+
+                if seg_actual:
+                    segmentos.append(seg_actual)
+
+                for seg in segmentos:
+                    texto_seg = ""
+                    for item in seg:
+                        ltxt = item["text"]
+                        if texto_seg.endswith("-"):
+                            texto_seg = texto_seg[:-1] + ltxt
+                        elif texto_seg:
+                            texto_seg += " " + ltxt
+                        else:
+                            texto_seg = ltxt
+                    texto_seg = texto_seg.strip()
+                    if not texto_seg:
+                        continue
+
+                    rect_seg = fitz.Rect(seg[0]["bbox"])
+                    for item in seg[1:]:
+                        rect_seg.include_rect(item["bbox"])
+
+                    todos_spans = []
+                    for item in seg:
+                        todos_spans.extend(item["spans"])
+
+                    total_chars = sum(len(s.get("text", "")) for s in todos_spans)
+                    serif_score = 0
+                    mono_score = 0
+                    sans_score = 0
+                    b_chars = 0
+                    it_chars = 0
+                    colores = []
+
+                    for s in todos_spans:
+                        c_len = len(s.get("text", ""))
+                        fn_raw = s.get("font", "").lower()
+                        flags = s.get("flags", 0)
+                        if (flags & 16) or "bold" in fn_raw or "black" in fn_raw or "heavy" in fn_raw:
+                            b_chars += c_len
+                        if (flags & 2) or "italic" in fn_raw or "oblique" in fn_raw:
+                            it_chars += c_len
+                        colores.append(s.get("color", 0))
+
+                        if any(kw in fn_raw for kw in ["times", "roman", "serif", "cambria", "georgia", "garamond", "minion", "palatino", "baskerville", "charter", "ptserif", "libertine", "stix", "cmr", "computermodern", "nimbusrom"]):
+                            serif_score += c_len
+                        elif any(kw in fn_raw for kw in ["courier", "mono", "consolas", "menlo", "sourcecode", "typewriter", "fixed"]):
+                            mono_score += c_len
+                        else:
+                            sans_score += c_len
+
+                    es_bold = (b_chars / max(1, total_chars)) > 0.45
+                    es_italic = (it_chars / max(1, total_chars)) > 0.45
+
+                    if serif_score >= sans_score and serif_score >= mono_score:
+                        fn = "tibi" if (es_bold and es_italic) else ("tibo" if es_bold else ("tiit" if es_italic else "tiro"))
+                    elif mono_score >= sans_score:
+                        fn = "cobi" if (es_bold and es_italic) else ("cobo" if es_bold else ("coit" if es_italic else "cour"))
+                    else:
+                        fn = "hebi" if (es_bold and es_italic) else ("hebo" if es_bold else ("heit" if es_italic else "helv"))
+
+                    avg_size = sum(s.get("size", 10.0) * len(s.get("text", "")) for s in todos_spans) / max(1, total_chars)
+                    c_int = colores[0] if colores else 0
+                    r_col = ((c_int >> 16) & 255) / 255.0
+                    g_col = ((c_int >> 8) & 255) / 255.0
+                    b_col = (c_int & 255) / 255.0
+
+                    es_tit = (es_bold and rect_seg.height < 28.0) or avg_size > 12.5 or (len(texto_seg) < 60 and bool(re.match(r'^(I|II|III|IV|V|VI|VII|VIII|IX|X|\d+|[A-Z])\.\s+', texto_seg)))
+
+                    unidades.append({
+                        "orig_rect": rect_seg,
+                        "texto": texto_seg,
+                        "fontname": fn,
+                        "size": avg_size,
+                        "color": (r_col, g_col, b_col),
+                        "bold": es_bold,
+                        "italic": es_italic,
+                        "es_titulo": es_tit,
+                        "es_dos_columnas": es_dos_columnas
+                    })
+
+            if not unidades:
+                continue
+
+            # 4. Traducir textos pendientes
+            textos_a_traducir = []
+            for u in unidades:
+                t = u["texto"]
+                if t not in cache_traducciones:
+                    if not re.search(r'[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]{2,}', t):
+                        cache_traducciones[t] = t
+                    else:
+                        textos_a_traducir.append(t)
+
+            if textos_a_traducir:
+                _traducir_parrafos(textos_a_traducir, idioma_destino, cache_traducciones)
+
+            # 5. Redactar el texto original con fill=None para no alterar imágenes ni fondos
+            for u in unidades:
+                pagina.add_redact_annot(u["orig_rect"], fill=None)
+            pagina.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+
+            # 6. Insertar texto traducido con delimitación estricta anti-colisión y anti-traspaso
+            for i, u in enumerate(unidades):
+                orig_r = u["orig_rect"]
+                trad = cache_traducciones.get(u["texto"], u["texto"])
+                fn = u["fontname"]
+                orig_sz = u["size"]
+                col = u["color"]
+                es_tit = u["es_titulo"]
+                es_dos_col = u["es_dos_columnas"]
+
+                mid_x = (orig_r.x0 + orig_r.x1) / 2
+                es_centrado = abs(mid_x - page_w / 2) < 30 and orig_r.width > page_w * 0.35
+
+                # --- Límites horizontales ---
+                if es_centrado:
+                    margin = min(orig_r.x0, page_w - orig_r.x1)
+                    tx0 = max(36.0, margin - 15.0)
+                    tx1 = min(page_w - 36.0, page_w - tx0)
+                    align = fitz.TEXT_ALIGN_CENTER
+                else:
+                    tx0 = orig_r.x0
+                    align = fitz.TEXT_ALIGN_LEFT
+                    if es_dos_col:
+                        if orig_r.x1 <= page_w * 0.52:
+                            # Columna izquierda: NUNCA traspasa el gutter central
+                            tx1 = min(page_w * 0.485, max(orig_r.x1 + 4.0, orig_r.x0 + 60.0))
+                        elif orig_r.x0 >= page_w * 0.48:
+                            # Columna derecha
+                            tx1 = min(page_w - 36.0, max(orig_r.x1 + 4.0, orig_r.x0 + 60.0))
+                        else:
+                            # Abarca ambas columnas
+                            tx1 = min(page_w - 36.0, orig_r.x1 + 10.0)
+                    else:
+                        tx1 = min(page_w - 36.0, orig_r.x1 + 8.0)
+
+                # Recorte por obstáculos a la derecha (evitar tapar imágenes o figuras)
+                for obs in obstaculos:
+                    v_overlap = max(orig_r.y0, obs.y0) < min(orig_r.y1, obs.y1)
+                    if v_overlap and obs.x0 >= orig_r.x0:
+                        tx1 = min(tx1, obs.x0 - 8.0)
+
+                # --- Límites verticales ---
+                next_y0 = page_h - 25.0
+                for j, other in enumerate(unidades):
                     if i == j:
                         continue
-                    o_rect = other["rect"]
-                    if o_rect.y0 >= rect.y0 + 3:
-                        h_overlap = max(rect.x0, o_rect.x0) < min(rect.x1, o_rect.x1) + 15
-                        if is_centered or is_wide or h_overlap:
-                            if o_rect.y0 < next_y0:
-                                next_y0 = o_rect.y0
+                    o_r = other["orig_rect"]
+                    if o_r.y0 >= orig_r.y0 + 2.0:
+                        h_overlap = max(tx0, o_r.x0) < min(tx1, o_r.x1) + 10.0
+                        if es_centrado or h_overlap:
+                            if o_r.y0 < next_y0:
+                                next_y0 = o_r.y0
 
-                # Límite estricto: el texto actual NUNCA puede invadir el espacio del bloque inferior
-                max_y1 = max(rect.y1, next_y0 - 2)
+                for obs in obstaculos:
+                    if obs.y0 >= orig_r.y0 + 2.0:
+                        h_overlap = max(tx0, obs.x0) < min(tx1, obs.x1) + 10.0
+                        if h_overlap and obs.y0 < next_y0:
+                            next_y0 = obs.y0
 
-                # Calcular límites horizontales y alineación
-                if is_centered:
-                    align = fitz.TEXT_ALIGN_CENTER
-                    margin = min(rect.x0, page_w - rect.x1)
-                    target_x0 = max(35, margin - 15)
-                    target_x1 = min(page_w - 35, page_w - target_x0)
+                if es_tit:
+                    # Títulos: altura estricta para jamás invadir el texto de abajo
+                    ty1 = max(orig_r.y1, min(orig_r.y1 + 4.0, next_y0 - 2.0))
                 else:
-                    align = fitz.TEXT_ALIGN_LEFT
-                    target_x0 = rect.x0
-                    # Detectar si hay otro bloque a la derecha en la misma franja horizontal
-                    next_x0 = page_w - 20
-                    for j, other in enumerate(blocks_a_reemplazar):
-                        if i == j:
-                            continue
-                        o_rect = other["rect"]
-                        v_overlap = max(rect.y0, o_rect.y0) < min(rect.y1, o_rect.y1)
-                        if v_overlap and o_rect.x0 >= rect.x1 - 5:
-                            if o_rect.x0 < next_x0:
-                                next_x0 = o_rect.x0
-                    target_x1 = max(rect.x1, next_x0 - 5)
+                    ty1 = max(orig_r.y1, next_y0 - 2.0)
 
-                target_rect = fitz.Rect(target_x0, rect.y0, target_x1, max_y1)
+                target_rect = fitz.Rect(tx0, orig_r.y0, max(tx0 + 20.0, tx1), max(orig_r.y0 + 8.0, ty1))
 
-                # Autoajustar tamaño tipográfico para que encaje perfectamente dentro de los límites estrictos
-                curr_size = orig_size
+                # Auto-ajuste de tamaño tipográfico para encajar perfectamente
+                curr_size = orig_sz
+                min_sz = max(4.5, orig_sz * 0.65)
                 escrito = False
-                while curr_size >= 5.0:
+                while curr_size >= min_sz:
                     rc = pagina.insert_textbox(target_rect, trad, fontsize=curr_size, color=col, fontname=fn, align=align)
                     if rc >= 0:
                         escrito = True
                         break
-                    curr_size -= 0.3
+                    curr_size -= 0.25
 
                 if not escrito:
-                    pagina.insert_textbox(target_rect, trad, fontsize=5.0, color=col, fontname=fn, align=align)
+                    while curr_size >= 4.0:
+                        rc = pagina.insert_textbox(target_rect, trad, fontsize=curr_size, color=col, fontname=fn, align=align)
+                        if rc >= 0:
+                            escrito = True
+                            break
+                        curr_size -= 0.25
 
+                if not escrito:
+                    pagina.insert_textbox(target_rect, trad, fontsize=4.0, color=col, fontname=fn, align=align)
 
         buffer = BytesIO()
         doc.save(buffer)
