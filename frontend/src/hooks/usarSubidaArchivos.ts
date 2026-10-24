@@ -3,12 +3,17 @@ import type { ArchivoSubido, EstadoConversion } from '../interfaces/tipos';
 import { validarArchivo } from '../utilidades/validadores';
 import { generarId, obtenerExtension } from '../utilidades/formateadores';
 
-export function usarSubidaArchivos() {
+export interface OpcionesSubidaArchivos {
+  reemplazarAlSubir?: boolean;
+}
+
+export function usarSubidaArchivos(opciones?: OpcionesSubidaArchivos) {
+  const reemplazarAlSubir = opciones?.reemplazarAlSubir ?? false;
   const [archivos, establecerArchivos] = useState<ArchivoSubido[]>([]);
   const [arrastrando, establecerArrastrando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const procesarArchivos = useCallback((listaArchivos: FileList | null) => {
+  const procesarArchivos = useCallback((listaArchivos: FileList | File[] | null, forzarReemplazo?: boolean) => {
     if (!listaArchivos) return;
 
     const nuevosArchivos: ArchivoSubido[] = [];
@@ -28,8 +33,12 @@ export function usarSubidaArchivos() {
       });
     });
 
-    establecerArchivos((prev) => [...prev, ...nuevosArchivos]);
-  }, []);
+    if (forzarReemplazo || reemplazarAlSubir) {
+      establecerArchivos(nuevosArchivos);
+    } else {
+      establecerArchivos((prev) => [...prev, ...nuevosArchivos]);
+    }
+  }, [reemplazarAlSubir]);
 
   const alArrastrarSobre = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -43,19 +52,20 @@ export function usarSubidaArchivos() {
     establecerArrastrando(false);
   }, []);
 
-  const alSoltar = useCallback((e: React.DragEvent) => {
+  const alSoltar = useCallback((e: React.DragEvent, forzarReemplazo?: boolean) => {
     e.preventDefault();
     e.stopPropagation();
     establecerArrastrando(false);
-    procesarArchivos(e.dataTransfer.files);
+    procesarArchivos(e.dataTransfer.files, forzarReemplazo);
   }, [procesarArchivos]);
 
   const abrirSelector = useCallback(() => {
     inputRef.current?.click();
   }, []);
 
-  const alSeleccionar = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    procesarArchivos(e.target.files);
+  const alSeleccionar = useCallback((e: React.ChangeEvent<HTMLInputElement>, forzarReemplazo?: boolean) => {
+    procesarArchivos(e.target.files, forzarReemplazo);
+    if (e.target) e.target.value = '';
     if (inputRef.current) inputRef.current.value = '';
   }, [procesarArchivos]);
 
@@ -81,6 +91,7 @@ export function usarSubidaArchivos() {
 
   const limpiarArchivos = useCallback(() => {
     establecerArchivos([]);
+    if (inputRef.current) inputRef.current.value = '';
   }, []);
 
   const obtenerFormatosDisponibles = useCallback((nombreArchivo: string): string[] => {
@@ -136,6 +147,9 @@ export function usarSubidaArchivos() {
     actualizarProgreso,
     eliminarArchivo,
     limpiarArchivos,
+    procesarArchivos,
+    establecerArchivos,
     obtenerFormatosDisponibles,
   };
 }
+

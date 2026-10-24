@@ -37,7 +37,11 @@ export default function CompresorImagenes() {
     }
     
     if (nuevasImagenes.length > 0) {
-      establecerArchivos((prev) => [...prev, ...nuevasImagenes]);
+      if (resultados.length > 0) {
+        establecerArchivos(nuevasImagenes);
+      } else {
+        establecerArchivos((prev) => [...prev, ...nuevasImagenes]);
+      }
       establecerResultados([]);
       establecerError('');
     }

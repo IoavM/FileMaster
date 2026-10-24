@@ -135,8 +135,14 @@ export default function EditorPDF() {
   const alSeleccionar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const lista = e.target.files;
     if (!lista) return;
-    establecerArchivos((prev) => [...prev, ...Array.from(lista)]);
+    if (operacion === 'unir') {
+      establecerArchivos((prev) => [...prev, ...Array.from(lista)]);
+    } else {
+      establecerArchivos(Array.from(lista).slice(0, 1));
+    }
     establecerError('');
+    if (e.target) e.target.value = '';
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const eliminarArchivo = (indice: number) => {

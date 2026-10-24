@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { FileOutput, Download } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { FileOutput, Download, RefreshCw } from 'lucide-react';
 import JSZip from 'jszip';
 import AreaSubida from '../../componentes/AreaSubida/AreaSubida';
 import SelectorFormato from '../../componentes/SelectorFormato/SelectorFormato';
@@ -10,6 +11,9 @@ import { convertirArchivo, descargarBlob } from '../../servicios/api';
 import './Convertir.css';
 
 export default function Convertir() {
+  const [searchParams] = useSearchParams();
+  const formatoDestinoParam = searchParams.get('a');
+
   const {
     archivos,
     arrastrando,
@@ -21,7 +25,8 @@ export default function Convertir() {
     alSeleccionar,
     eliminarArchivo,
     obtenerFormatosDisponibles,
-  } = usarSubidaArchivos();
+    limpiarArchivos,
+  } = usarSubidaArchivos({ reemplazarAlSubir: true });
 
   const [formatoSalida, establecerFormatoSalida] = useState('');
   const [progreso, establecerProgreso] = useState(0);
@@ -34,6 +39,27 @@ export default function Convertir() {
   const formatosDisponibles = archivoReferencia
     ? obtenerFormatosDisponibles(archivoReferencia.nombre)
     : [];
+
+  const refArchivosIds = useRef<string>('');
+
+  // Sincronizar y resetear estado cuando los archivos cambian
+  useEffect(() => {
+    const idsActuales = archivos.map((a) => a.id).join(',');
+    if (idsActuales !== refArchivosIds.current) {
+      refArchivosIds.current = idsActuales;
+      establecerProgreso(0);
+      establecerResultados([]);
+      establecerEstadoProcesamiento('');
+      establecerError('');
+
+      // Si viene por parámetro de URL y es compatible, preseleccionarlo
+      if (formatoDestinoParam && formatosDisponibles.includes(formatoDestinoParam)) {
+        establecerFormatoSalida(formatoDestinoParam);
+      } else if (formatoSalida && !formatosDisponibles.includes(formatoSalida)) {
+        establecerFormatoSalida('');
+      }
+    }
+  }, [archivos, formatosDisponibles, formatoDestinoParam, formatoSalida]);
 
   const iniciarConversion = async () => {
     if (archivos.length === 0 || !formatoSalida) return;
@@ -49,7 +75,11 @@ export default function Convertir() {
     try {
       for (let i = 0; i < totalArchivos; i++) {
         const archivoActual = archivos[i];
-        establecerEstadoProcesamiento(`Convirtiendo ${i + 1} de ${totalArchivos}: ${archivoActual.nombre}`);
+        establecerEstadoProcesamiento(
+          totalArchivos > 1
+            ? `Convirtiendo ${i + 1} de ${totalArchivos}: ${archivoActual.nombre}`
+            : `Convirtiendo ${archivoActual.nombre}...`
+        );
         
         const alProgreso = (p: number) => {
           const progresoGlobal = Math.round(((i * 100) + p) / totalArchivos);
@@ -99,6 +129,15 @@ export default function Convertir() {
     }
   };
 
+  const reiniciarTodo = () => {
+    limpiarArchivos();
+    establecerFormatoSalida('');
+    establecerResultados([]);
+    establecerProgreso(0);
+    establecerError('');
+    establecerEstadoProcesamiento('');
+  };
+
   return (
     <div className="pagina-herramienta">
       <div className="contenedor">
@@ -141,7 +180,7 @@ export default function Convertir() {
             <div style={{ marginTop: 20 }}>
               <BarraProgreso
                 progreso={progreso}
-                etiqueta={estadoProcesamiento}
+                etiqueta={estadoProcesamiento || 'Convirtiendo...'}
                 estado="convirtiendo"
               />
             </div>
@@ -154,13 +193,20 @@ export default function Convertir() {
           )}
 
           {resultados.length > 0 && (
-            <div className="acciones-herramienta" style={{ marginTop: 20 }}>
+            <div className="acciones-herramienta" style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <BotonPrimario
                 variante="primario"
                 icono={<Download size={18} />}
                 onClick={descargarResultado}
               >
                 Descargar {resultados.length === 1 ? 'Archivo' : 'ZIP'}
+              </BotonPrimario>
+              <BotonPrimario
+                variante="secundario"
+                icono={<RefreshCw size={16} />}
+                onClick={reiniciarTodo}
+              >
+                Convertir otro archivo
               </BotonPrimario>
             </div>
           )}
@@ -173,7 +219,7 @@ export default function Convertir() {
                 onClick={iniciarConversion}
                 icono={<FileOutput size={18} />}
               >
-                Convertir {archivos.length > 1 ? `(${archivos.length} archivos)` : ''}
+                Convertir {archivos.length > 1 ? `(${archivos.length} archivos)` : 'Archivo'}
               </BotonPrimario>
             </div>
           )}
