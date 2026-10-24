@@ -9,11 +9,21 @@ import base64
 import re
 import html
 import time
+import sys
+import os
 import requests
 from bs4 import BeautifulSoup
 from pypdf import PdfReader, PdfWriter, PdfMerger
 import fitz  # PyMuPDF
-from app.utilidades.seguridad import validar_fuerza_contrasena, mitigar_ataque_tiempo
+
+_dir_backend = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _dir_backend not in sys.path:
+    sys.path.insert(0, _dir_backend)
+
+try:
+    from app.utilidades.seguridad import validar_fuerza_contrasena, mitigar_ataque_tiempo
+except (ImportError, ModuleNotFoundError):
+    from utilidades.seguridad import validar_fuerza_contrasena, mitigar_ataque_tiempo
 
 
 def _traducir_bloque_individual(texto: str, idioma_destino: str = "es", idioma_origen: str = "auto") -> str:

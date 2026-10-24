@@ -4,22 +4,38 @@ Servidor principal de la API para conversión de archivos y herramientas.
 Blindado con defensas OWASP Top 10 (Rate limiting, CORS restrictivo, cabeceras defensivas y sanitización de errores 500).
 """
 import os
+import sys
 import logging
 from contextlib import asynccontextmanager
+
+# Asegurar resolución de importaciones de la aplicación en sys.path
+_dir_backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _dir_backend not in sys.path:
+    sys.path.insert(0, _dir_backend)
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.configuracion.ajustes import configuracion
-from app.utilidades.seguridad import limitador_tasa
-from app.api.rutas_conversion import enrutador_conversion
-from app.api.rutas_pdf import enrutador_pdf
-from app.api.rutas_qr import enrutador_qr
-from app.api.rutas_tts import enrutador_tts
-from app.api.rutas_compresor import enrutador_compresor
-from app.api.rutas_detector_ia import enrutador_detector_ia
+try:
+    from app.configuracion.ajustes import configuracion
+    from app.utilidades.seguridad import limitador_tasa
+    from app.api.rutas_conversion import enrutador_conversion
+    from app.api.rutas_pdf import enrutador_pdf
+    from app.api.rutas_qr import enrutador_qr
+    from app.api.rutas_tts import enrutador_tts
+    from app.api.rutas_compresor import enrutador_compresor
+    from app.api.rutas_detector_ia import enrutador_detector_ia
+except (ImportError, ModuleNotFoundError):
+    from configuracion.ajustes import configuracion
+    from utilidades.seguridad import limitador_tasa
+    from api.rutas_conversion import enrutador_conversion
+    from api.rutas_pdf import enrutador_pdf
+    from api.rutas_qr import enrutador_qr
+    from api.rutas_tts import enrutador_tts
+    from api.rutas_compresor import enrutador_compresor
+    from api.rutas_detector_ia import enrutador_detector_ia
 
 # Configuración de registro estructurado y seguro
 logging.basicConfig(
