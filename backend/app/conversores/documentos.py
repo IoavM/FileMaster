@@ -18,19 +18,56 @@ def pdf_a_txt(pdf_bytes: bytes) -> bytes:
     return texto.encode("utf-8")
 
 def pdf_a_docx(pdf_bytes: bytes) -> bytes:
-    # Extraer texto de PDF y escribirlo en un documento Word (.docx)
-    doc_fitz = fitz.open(stream=pdf_bytes, filetype="pdf")
-    doc_docx = docx.Document()
-    
-    for pagina in doc_fitz:
-        lineas = pagina.get_text().splitlines()
-        for linea in lineas:
-            if linea.strip():
-                doc_docx.add_paragraph(linea)
-                
-    buffer = BytesIO()
-    doc_docx.save(buffer)
-    return buffer.getvalue()
+    """
+    Convierte un PDF a documento Word (.docx) preservando con alta fidelidad:
+    - Tipografía, fuentes, tamaños, estilos (negrita, cursiva) y colores.
+    - Alineaciones, márgenes, sangrías y espaciado de párrafos.
+    - Tablas completas con celdas, bordes y formatos originales.
+    - Imágenes y figuras embebidas en su posición original.
+    """
+    import tempfile
+    import os
+
+    try:
+        from pdf2docx import Converter
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f_pdf:
+            f_pdf.write(pdf_bytes)
+            ruta_pdf = f_pdf.name
+
+        ruta_docx = ruta_pdf + ".docx"
+
+        try:
+            cv = Converter(ruta_pdf)
+            cv.convert(ruta_docx, start=0, end=None)
+            cv.close()
+
+            with open(ruta_docx, "rb") as f_docx:
+                return f_docx.read()
+        finally:
+            if os.path.exists(ruta_pdf):
+                try:
+                    os.remove(ruta_pdf)
+                except Exception:
+                    pass
+            if os.path.exists(ruta_docx):
+                try:
+                    os.remove(ruta_docx)
+                except Exception:
+                    pass
+
+    except Exception:
+        # Fallback de respaldo en caso de PDFs no estructurados
+        doc_fitz = fitz.open(stream=pdf_bytes, filetype="pdf")
+        doc_docx = docx.Document()
+        for pagina in doc_fitz:
+            bloques = pagina.get_text("blocks")
+            for b in bloques:
+                if len(b) >= 5 and b[4].strip():
+                    doc_docx.add_paragraph(b[4].strip())
+        buffer = BytesIO()
+        doc_docx.save(buffer)
+        return buffer.getvalue()
 
 def pdf_a_imagen(pdf_bytes: bytes, formato: str = "png") -> bytes:
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
