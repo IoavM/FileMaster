@@ -1,34 +1,99 @@
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-frontend/*.local
-frontend/.env
-frontend/.env.*
+# ==============================================================================
+# FileMaster — .gitignore Blindado de Seguridad Defensiva (OWASP)
+# Protege credenciales, bases de datos locales, logs, caches y entornos.
+# ==============================================================================
 
-# Backend (Python)
-**/__pycache__/
-**/*.pyc
-**/venv/
-**/.venv/
-backend/.env
-backend/.env.*
+# 1. Credenciales, Claves y Secretos (Crítico: Prevención de filtración)
+.env
+.env.*
+*.env
+*.env.*
+!.env.ejemplo
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.p12
+*.crt
+*.cert
+*.csr
+secrets.json
+credentials.json
+service-account*.json
 
-# Logs
-logs
+# 2. Bases de Datos Locales y Archivos de Volcado
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.sql
+*.dump
+
+# 3. Logs y Depuración
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Editores y SO
-.vscode/
+# 4. Backend (Python: Caches, Compilados y Entornos Virtuales)
+**/__pycache__/
+**/*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+**/venv/
+**/.venv/
+**/env/
+**/ENV/
+build/
+*.egg-info/
+.eggs/
+
+# 5. Frontend (Node / Vite / React: Dependencias y Compilados)
+**/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+.pnpm-store/
+.cache/
+*.tsbuildinfo
+
+# 6. Archivos de Sistema Operativo y Editores
+.vscode/*
+!.vscode/extensions.json
 .idea/
-.DS_Store
-Thumbs.db
 *.suo
+*.ntvs*
+*.njsproj
+*.sln
 *.sw?
+*~
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Archivos de prueba
+# 7. Archivos Temporales de Conversión y Pruebas Locales
 prueba*.pdf
 *.bin
+*.tmp
+*.temp
+*temp*/
+filemaster_temp/
+filemaster_uploads/
+filemaster_outputs/
 
+# 8. Scratch y Archivos de Trabajo de Agentes
+scratch/
+.system_generated/

@@ -40,7 +40,7 @@ def convertir_video(bytes_entrada: bytes, formato_salida: str) -> bytes:
         )
         
         if resultado.returncode != 0:
-            raise RuntimeError(f"Error al ejecutar ffmpeg: {resultado.stderr}")
+            raise RuntimeError("Error en la transcodificación del video. Formato o códec no compatible.")
             
         with open(ruta_salida, "rb") as f:
             return f.read()

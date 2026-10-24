@@ -8,10 +8,12 @@ import zipfile
 import base64
 import re
 import html
+import time
 import requests
 from bs4 import BeautifulSoup
 from pypdf import PdfReader, PdfWriter, PdfMerger
 import fitz  # PyMuPDF
+from app.utilidades.seguridad import validar_fuerza_contrasena, mitigar_ataque_tiempo
 
 
 def _traducir_bloque_individual(texto: str, idioma_destino: str = "es", idioma_origen: str = "auto") -> str:
@@ -150,6 +152,9 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
         clave = opciones.get("clave", "")
         if not clave:
             raise ValueError("Debes especificar una contraseña para proteger el PDF.")
+        es_valida, motivo = validar_fuerza_contrasena(clave)
+        if not es_valida:
+            raise ValueError(f"Contraseña insegura: {motivo}")
         doc = fitz.open(stream=bytes_entrada, filetype="pdf")
         buffer = BytesIO()
         perm = fitz.PDF_PERM_ACCESSIBILITY | fitz.PDF_PERM_PRINT | fitz.PDF_PERM_COPY
@@ -163,12 +168,18 @@ def procesar_pdf(archivos_bytes: list[bytes], operacion: str, opciones: dict = N
         return buffer.getvalue()
 
     elif operacion == "desbloquear":
+        tiempo_inicio = time.monotonic()
         clave = opciones.get("clave", "")
+        if not clave:
+            raise ValueError("Debes ingresar la contraseña para desbloquear el PDF.")
         doc = fitz.open(stream=bytes_entrada, filetype="pdf")
         if doc.is_encrypted:
             autenticado = doc.authenticate(clave)
             if not autenticado:
+                # Mitigación de timing attack: tiempo de respuesta constante
+                mitigar_ataque_tiempo(tiempo_inicio, tiempo_minimo=0.35)
                 raise ValueError("Contraseña incorrecta para desbloquear el PDF.")
+        mitigar_ataque_tiempo(tiempo_inicio, tiempo_minimo=0.35)
         buffer = BytesIO()
         doc.save(buffer)
         return buffer.getvalue()

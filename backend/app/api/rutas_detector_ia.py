@@ -1,6 +1,8 @@
 """
 Rutas de la API para Detección y Humanización de Texto IA.
+Con sanitización de errores defensiva (OWASP A05).
 """
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -10,6 +12,7 @@ from app.servicios.detector_ia import (
     extraer_perfil_estilo
 )
 
+logger = logging.getLogger("filemaster.detector_ia")
 enrutador_detector_ia = APIRouter(prefix="/detector-ia", tags=["Detector y Humanizador IA"])
 
 
@@ -34,8 +37,11 @@ async def endpoint_analizar_texto(solicitud: SolicitudAnalisis):
     try:
         resultado = analizar_texto_ia(solicitud.texto)
         return resultado
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al analizar el texto: {str(e)}")
+        logger.error(f"Error procesando análisis de IA: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al procesar el análisis de texto.")
 
 
 @enrutador_detector_ia.post("/humanizar")
@@ -49,8 +55,11 @@ async def endpoint_humanizar_texto(solicitud: SolicitudHumanizacion):
             texto_muestra_usuario=solicitud.texto_muestra_usuario or ""
         )
         return resultado
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al humanizar el texto: {str(e)}")
+        logger.error(f"Error procesando humanización de texto: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al humanizar el texto.")
 
 
 @enrutador_detector_ia.post("/analizar-estilo")
@@ -59,5 +68,8 @@ async def endpoint_analizar_estilo(solicitud: SolicitudPerfilEstilo):
     try:
         resultado = extraer_perfil_estilo(solicitud.texto_muestra)
         return resultado
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al analizar el estilo del usuario: {str(e)}")
+        logger.error(f"Error extrayendo perfil estilométrico: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al analizar el estilo del usuario.")

@@ -22,6 +22,7 @@ import BotonPrimario from '../../componentes/BotonPrimario/BotonPrimario';
 import BarraProgreso from '../../componentes/BarraProgreso/BarraProgreso';
 import { editarPDF, descargarBlob } from '../../servicios/api';
 import { formatearTamano } from '../../utilidades/formateadores';
+import { validarContrasena, extraerMensajeError } from '../../utilidades/validadores';
 import '../Convertir/Convertir.css';
 import './EditorPDF.css';
 
@@ -232,6 +233,14 @@ export default function EditorPDF() {
           establecerProcesando(false);
           return;
         }
+        if (operacion === 'proteger') {
+          const resClave = validarContrasena(clave);
+          if (!resClave.valido) {
+            establecerError(resClave.mensaje || 'La contraseña no cumple con los requisitos mínimos de seguridad.');
+            establecerProcesando(false);
+            return;
+          }
+        }
         opciones = { clave };
       } else if (operacion === 'ordenar') {
         opciones = { orden: ordenPaginas };
@@ -260,8 +269,12 @@ export default function EditorPDF() {
       const participio = PARTICIPIOS[operacion] || operacion;
       const nombreDescarga = `${nombreBase}-${participio}.pdf`;
       descargarBlob(blob, nombreDescarga);
-    } catch {
-      establecerError('Error al procesar el PDF. Verifica la contraseña o la disponibilidad del servidor.');
+    } catch (err: unknown) {
+      const msg = await extraerMensajeError(
+        err,
+        'Error al procesar el PDF. Verifica la contraseña o la disponibilidad del servidor.'
+      );
+      establecerError(msg);
     } finally {
       establecerProcesando(false);
     }
@@ -414,15 +427,47 @@ export default function EditorPDF() {
           {(operacion === 'proteger' || operacion === 'desbloquear') && archivos.length > 0 && (
             <div style={{ marginTop: 16, padding: 16, background: '#F8FAFC', borderRadius: 8 }}>
               <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
-                {operacion === 'proteger' ? 'Establecer Contraseña' : 'Ingresar Contraseña Actual'}
+                {operacion === 'proteger' ? 'Establecer Contraseña Defensiva' : 'Ingresar Contraseña Actual'}
               </h3>
               <input
                 type="password"
-                placeholder="Contraseña..."
+                placeholder={operacion === 'proteger' ? 'Contraseña robusta (mín. 8 caracteres)...' : 'Contraseña del documento...'}
                 value={clave}
                 onChange={(e) => establecerClave(e.target.value)}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 14 }}
               />
+              {operacion === 'proteger' && clave.length > 0 && (() => {
+                const infoClave = validarContrasena(clave);
+                return (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: '#64748B' }}>Seguridad de contraseña:</span>
+                      <span style={{ fontWeight: 600, color: infoClave.color }}>{infoClave.etiqueta}</span>
+                    </div>
+                    <div style={{ width: '100%', height: 6, background: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${(infoClave.puntuacion / 3) * 100}%`,
+                          height: '100%',
+                          background: infoClave.color,
+                          transition: 'all 0.25s ease',
+                        }}
+                      />
+                    </div>
+                    {!infoClave.valido && (
+                      <p style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>{infoClave.mensaje}</p>
+                    )}
+                    {infoClave.valido && (
+                      <p style={{ color: '#10B981', fontSize: 12, marginTop: 4 }}>✓ Cumple con los requisitos de seguridad defensiva OWASP.</p>
+                    )}
+                  </div>
+                );
+              })()}
+              {operacion === 'proteger' && clave.length === 0 && (
+                <p style={{ color: '#64748B', fontSize: 12, marginTop: 6 }}>
+                  Mínimo 8 caracteres, combinando letras con al menos un número o símbolo.
+                </p>
+              )}
             </div>
           )}
 
