@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-const URL_BASE = import.meta.env.VITE_API_URL ||
+let urlConfigurada = import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV ? '/api' : 'https://filemaster.onrender.com/api');
+
+if (urlConfigurada && !urlConfigurada.endsWith('/api') && urlConfigurada.startsWith('http')) {
+  urlConfigurada = `${urlConfigurada.replace(/\/+$/, '')}/api`;
+}
+
+const URL_BASE = urlConfigurada;
 
 const cliente = axios.create({
   baseURL: URL_BASE,

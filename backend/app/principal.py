@@ -2,6 +2,7 @@
 FileMaster Backend — FastAPI
 Servidor principal de la API para conversión de archivos y herramientas.
 Blindado con defensas OWASP Top 10 (Rate limiting, CORS restrictivo, cabeceras defensivas y sanitización de errores 500).
+Optimizado con middlewares ASGI puros para evitar deadlocks de streaming en subida de archivos (UploadFile).
 """
 import os
 import sys
@@ -16,7 +17,8 @@ if _dir_backend not in sys.path:
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Scope, Receive, Send
 
 try:
     from app.configuracion.ajustes import configuracion
@@ -57,85 +59,111 @@ async def ciclo_vida(app: FastAPI):
 app = FastAPI(
     title="FileMaster API",
     description="API defensiva y gratuita para conversión de archivos y herramientas multimedia.",
-    version="1.0.0",
+    version="1.0.1",
     lifespan=ciclo_vida,
 )
 
 
-class CabecerasSeguridadMiddleware(BaseHTTPMiddleware):
+class CabecerasSeguridadMiddleware:
     """
-    Middleware defensivo para inyectar cabeceras de seguridad HTTP (OWASP A05).
-    Protege contra MIME-sniffing, Clickjacking, XSS y fugas de referencia.
+    Middleware defensivo puro ASGI para inyectar cabeceras de seguridad HTTP (OWASP A05).
+    No clona ni bloquea el stream de datos multipart/form-data.
     """
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "img-src 'self' data: blob:; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "connect-src 'self' https:;"
-        )
-        # Ocultar cabeceras que revelen tecnologías internas
-        if "server" in response.headers:
-            del response.headers["server"]
-        return response
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_con_cabeceras(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["X-Frame-Options"] = "DENY"
+                headers["X-XSS-Protection"] = "1; mode=block"
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+                headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+                headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                headers["Content-Security-Policy"] = (
+                    "default-src 'self'; "
+                    "img-src 'self' data: blob:; "
+                    "font-src 'self' https://fonts.gstatic.com; "
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                    "connect-src 'self' https:;"
+                )
+                if "server" in headers:
+                    del headers["server"]
+            await send(message)
+
+        await self.app(scope, receive, send_con_cabeceras)
 
 
-class LimitadorTasaMiddleware(BaseHTTPMiddleware):
+class LimitadorTasaMiddleware:
     """
-    Middleware para mitigación de fuerza bruta y ataques de denegación de servicio (DoS / OWASP A04).
-    Aplica una tasa límite por IP a nivel general.
+    Middleware defensivo puro ASGI para mitigación de fuerza bruta y DoS (OWASP A04).
+    Lee únicamente los headers de scope sin consumir ni alterar el stream de recepción de archivos.
     """
-    async def dispatch(self, request: Request, call_next):
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        method = scope.get("method", "")
+
         # Excluir comprobación de salud y preflight OPTIONS
-        if request.url.path == "/api/salud" or request.method == "OPTIONS":
-            return await call_next(request)
+        if path == "/api/salud" or method == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
 
-        # Obtener IP cliente real detrás de proxies inversos
-        ip_cliente = request.headers.get("x-forwarded-for")
-        if ip_cliente:
-            ip = ip_cliente.split(",")[0].strip()
+        # Extraer IP cliente desde los metadatos de la conexión ASGI
+        raw_headers = dict(scope.get("headers", []))
+        x_forwarded_for = raw_headers.get(b"x-forwarded-for")
+        if x_forwarded_for:
+            ip = x_forwarded_for.decode("latin1").split(",")[0].strip()
         else:
-            ip = request.client.host if request.client else "127.0.0.1"
+            client = scope.get("client")
+            ip = client[0] if client else "127.0.0.1"
 
         permitido, reintentar_en = limitador_tasa.verificar_limite(
             identificador=ip,
             operacion="api_general",
             max_peticiones=configuracion.TASA_LIMITE_GENERAL,
-            ventana_segundos=60.0
+            ventana_segundos=60.0,
         )
 
         if not permitido:
-            logger.warning(f"Límite de tasa excedido para IP: {ip} en {request.url.path}")
-            return JSONResponse(
+            logger.warning(f"Límite de tasa excedido para IP: {ip} en {path}")
+            response = JSONResponse(
                 status_code=429,
                 content={
                     "detalle": "Demasiadas solicitudes. Límite de tasa excedido. Por favor intenta más tarde."
                 },
-                headers={"Retry-After": str(reintentar_en)}
+                headers={"Retry-After": str(reintentar_en)},
             )
+            await response(scope, receive, send)
+            return
 
-        return await call_next(request)
+        await self.app(scope, receive, send)
 
 
-# Registro de middlewares en orden de procesamiento
+# Registro de middlewares en orden de procesamiento (ASGI)
 app.add_middleware(CabecerasSeguridadMiddleware)
 app.add_middleware(LimitadorTasaMiddleware)
 
-# CORS restrictivo: orígenes validados, métodos y cabeceras estrictamente limitadas
+# CORS defensivo: permite localhost y cualquier subdominio vercel.app
 app.add_middleware(
     CORSMiddleware,
     allow_origins=configuracion.ORIGENES_PERMITIDOS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=configuracion.METODOS_CORS_PERMITIDOS,
-    allow_headers=configuracion.CABECERAS_CORS_PERMITIDAS,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
     max_age=600,
 )
 
@@ -190,4 +218,4 @@ app.include_router(enrutador_detector_ia, prefix="/api", tags=["Detector y Human
 @app.get("/api/salud")
 async def verificar_salud():
     """Endpoint de verificación de salud del servidor."""
-    return {"estado": "activo", "version": "1.0.0"}
+    return {"estado": "activo", "version": "1.0.1"}
